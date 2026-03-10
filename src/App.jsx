@@ -389,14 +389,15 @@ const App = () => {
                 </div>
                 <div className="md:col-span-2 space-y-1.5">
                   <label className="text-sm font-semibold text-gray-600">상세</label>
-                  <textarea
+                  <input
+                    type="text"
                     name="details"
                     value={formData.details}
                     onChange={handleChange}
                     placeholder="상세 내용을 입력하세요."
                     lang="ko"
                     spellCheck="false"
-                    className="w-full p-3 md:p-3.5 border rounded-xl h-24 focus:ring-2 focus:ring-indigo-200 outline-none border-gray-200 bg-gray-50 focus:bg-white transition-colors"
+                    className="w-full p-3 md:p-3.5 border rounded-xl focus:ring-2 focus:ring-indigo-200 outline-none border-gray-200 bg-gray-50 focus:bg-white transition-colors"
                   />
                 </div>
                 <div className="space-y-1.5">
