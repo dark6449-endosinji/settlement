@@ -9,13 +9,17 @@ import {
   ArrowUpDown,
   TrendingUp,
   PieChart,
-  RefreshCw
+  RefreshCw,
+  Trash2,
+  Pencil,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 // Firebase Database Imports
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, updateDoc } from 'firebase/firestore';
 
 // ---------------------------------------------------------
 // Firebase 초기화 세팅 (실제 배포용 환경)
@@ -46,6 +50,12 @@ const App = () => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('input');
+
+  // 페이지네이션 및 수정/삭제 기능 상태
+  const [currentPage, setCurrentPage] = useState(1);
+  const [editingId, setEditingId] = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const ITEMS_PER_PAGE = 10;
 
   // 입력 폼 상태
   const [formData, setFormData] = useState({
@@ -114,32 +124,42 @@ const App = () => {
   };
 
   // ---------------------------------------------------------
-  // 3. 데이터 추가 핸들러 (Firestore 저장)
+  // 3. 데이터 추가 및 수정 핸들러 (Firestore 저장)
   // ---------------------------------------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.content || !formData.amount || !formData.recipient) {
-      alert('필수 항목을 입력해주세요.');
       return;
     }
     
-    const newItem = {
+    const itemData = {
       ...formData,
       amount: Number(formData.amount),
-      createdAt: new Date().toISOString()
+      updatedAt: new Date().toISOString()
     };
 
-    if (user && db) {
-      // Firebase가 연결된 경우 클라우드에 저장
-      const newId = Date.now().toString();
-      const itemRef = doc(db, 'artifacts', appId, 'users', user.uid, 'settlements', newId);
-      await setDoc(itemRef, { ...newItem, id: newId });
+    if (editingId) {
+      // 데이터 수정
+      if (user && db) {
+        const itemRef = doc(db, 'artifacts', appId, 'users', user.uid, 'settlements', editingId.toString());
+        await updateDoc(itemRef, itemData);
+      } else {
+        setItems(prev => prev.map(i => i.id === editingId ? { ...i, ...itemData } : i));
+      }
+      setEditingId(null);
     } else {
-      // Firebase 연결 실패 시 로컬 임시 상태에만 추가 (Vercel 등에 DB 설정 전 대응)
-      setItems(prev => [...prev, { ...newItem, id: Date.now().toString() }]);
+      // 데이터 신규 추가
+      itemData.createdAt = new Date().toISOString();
+      if (user && db) {
+        const newId = Date.now().toString();
+        const itemRef = doc(db, 'artifacts', appId, 'users', user.uid, 'settlements', newId);
+        await setDoc(itemRef, { ...itemData, id: newId });
+      } else {
+        setItems(prev => [...prev, { ...itemData, id: Date.now().toString() }]);
+      }
+      setCurrentPage(1); // 새 데이터 추가 시 최신 페이지(1페이지)로 이동
     }
 
-    alert('저장되었습니다.');
     setFormData({
       date: new Date().toISOString().split('T')[0],
       content: '',
@@ -150,6 +170,46 @@ const App = () => {
       status: '대기',
       settlementDate: ''
     });
+  };
+
+  // ---------------------------------------------------------
+  // 3-1. 수정 취소 / 수정 모드 진입 / 삭제 핸들러
+  // ---------------------------------------------------------
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setFormData({
+      date: new Date().toISOString().split('T')[0],
+      content: '', brief: '', details: '', amount: '', recipient: '', status: '대기', settlementDate: ''
+    });
+  };
+
+  const handleEditClick = (item) => {
+    setFormData({
+      date: item.date,
+      content: item.content,
+      brief: item.brief || '',
+      details: item.details || '',
+      amount: item.amount.toString(),
+      recipient: item.recipient,
+      status: item.status,
+      settlementDate: item.settlementDate || ''
+    });
+    setEditingId(item.id);
+    setActiveTab('input');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = async (id) => {
+    if (user && db) {
+      try {
+        await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settlements', id.toString()));
+      } catch (error) {
+        console.error("Delete error", error);
+      }
+    } else {
+      setItems(prev => prev.filter(item => item.id !== id));
+    }
+    setDeleteConfirmId(null);
   };
 
   // ---------------------------------------------------------
@@ -169,20 +229,33 @@ const App = () => {
     if (user && db) {
       try {
         const itemRef = doc(db, 'artifacts', appId, 'users', user.uid, 'settlements', item.id.toString());
-        await setDoc(itemRef, updatedItem, { merge: true });
+        await updateDoc(itemRef, updatedItem);
       } catch (error) {
         console.error("Status update error", error);
-        alert('상태 업데이트에 실패했습니다.');
       }
     } else {
       setItems(prev => prev.map(i => i.id === item.id ? updatedItem : i));
     }
   };
 
-  // 조회 데이터 처리: 날짜순 정렬
+  // 조회 데이터 처리: 날짜순 정렬 (최신순 내림차순으로 변경)
   const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => new Date(a.date) - new Date(b.date));
+    return [...items].sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [items]);
+
+  // 페이지네이션 처리
+  const totalPages = Math.ceil(sortedItems.length / ITEMS_PER_PAGE) || 1;
+  const currentItems = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return sortedItems.slice(start, start + ITEMS_PER_PAGE);
+  }, [sortedItems, currentPage]);
+
+  // 데이터 삭제 등으로 페이지 수를 초과하게 된 경우 보정
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(Math.max(1, totalPages));
+    }
+  }, [totalPages, currentPage]);
 
   // 월별 합계 계산
   const monthlyTotals = useMemo(() => {
@@ -256,8 +329,8 @@ const App = () => {
           {!isLoading && activeTab === 'input' && (
             <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100 animate-in fade-in duration-300">
               <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 border-b pb-4 text-gray-700">
-                <PlusCircle className="text-indigo-500" />
-                정산 내역 입력
+                {editingId ? <Pencil className="text-indigo-500" /> : <PlusCircle className="text-indigo-500" />}
+                {editingId ? '정산 내역 수정' : '정산 내역 입력'}
               </h2>
               <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1">
@@ -356,13 +429,22 @@ const App = () => {
                     />
                   </div>
                 </div>
-                <div className="md:col-span-2 pt-4">
+                <div className="md:col-span-2 pt-4 flex gap-4">
                   <button
                     type="submit"
-                    className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-lg hover:shadow-indigo-200 flex items-center justify-center gap-2"
+                    className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-lg hover:shadow-indigo-200 flex items-center justify-center gap-2"
                   >
-                    데이터 저장하기
+                    {editingId ? '데이터 수정하기' : '데이터 저장하기'}
                   </button>
+                  {editingId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      className="py-4 px-8 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-xl transition-colors"
+                    >
+                      취소
+                    </button>
+                  )}
                 </div>
               </form>
             </div>
@@ -407,7 +489,7 @@ const App = () => {
                 <div className="p-6 border-b border-gray-50 flex justify-between items-center">
                   <h3 className="font-bold text-gray-700 flex items-center gap-2">
                     <List className="w-5 h-5 text-indigo-500" />
-                    상세 내역 목록 (날짜순)
+                    상세 내역 목록 (최신순)
                   </h3>
                 </div>
                 <div className="overflow-x-auto">
@@ -421,10 +503,11 @@ const App = () => {
                         <th className="px-6 py-4 font-semibold text-center">수령인</th>
                         <th className="px-6 py-4 font-semibold text-center">현황 (클릭 시 변경)</th>
                         <th className="px-6 py-4 font-semibold">정산일자</th>
+                        <th className="px-6 py-4 font-semibold text-center">관리</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {sortedItems.map((item) => (
+                      {currentItems.map((item) => (
                         <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 font-medium text-gray-900">{item.date}</td>
                           <td className="px-6 py-4">
@@ -454,11 +537,37 @@ const App = () => {
                             </button>
                           </td>
                           <td className="px-6 py-4 text-gray-500">{item.settlementDate || '-'}</td>
+                          <td className="px-6 py-4 text-center">
+                            {deleteConfirmId === item.id ? (
+                              <div className="flex items-center justify-center gap-1 text-xs">
+                                <span className="text-red-500 font-bold mr-1">삭제?</span>
+                                <button onClick={() => handleDelete(item.id)} className="px-2 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors">예</button>
+                                <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors">아니오</button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-2">
+                                <button 
+                                  onClick={() => handleEditClick(item)}
+                                  className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                  title="수정"
+                                >
+                                  <Pencil size={16} />
+                                </button>
+                                <button 
+                                  onClick={() => setDeleteConfirmId(item.id)}
+                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                  title="삭제"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            )}
+                          </td>
                         </tr>
                       ))}
-                      {sortedItems.length === 0 && (
+                      {currentItems.length === 0 && (
                         <tr>
-                          <td colSpan="7" className="px-6 py-12 text-center text-gray-400">
+                          <td colSpan="8" className="px-6 py-12 text-center text-gray-400">
                             저장된 데이터가 없습니다. 먼저 내역을 입력해주세요.
                           </td>
                         </tr>
@@ -466,6 +575,54 @@ const App = () => {
                     </tbody>
                   </table>
                 </div>
+                
+                {/* Pagination Controls */}
+                {sortedItems.length > 0 && (
+                  <div className="px-6 py-4 border-t border-gray-50 flex items-center justify-between bg-gray-50/50">
+                    <span className="text-sm text-gray-500">
+                      총 <span className="font-bold text-gray-900">{sortedItems.length}</span>건 중 
+                      {' '} <span className="font-bold text-gray-900">{sortedItems.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span> 
+                      - <span className="font-bold text-gray-900">{Math.min(currentPage * ITEMS_PER_PAGE, sortedItems.length)}</span>건
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="p-1.5 rounded border border-gray-200 text-gray-500 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalPages }).map((_, idx) => {
+                          const pageNum = idx + 1;
+                          if (pageNum === 1 || pageNum === totalPages || (pageNum >= currentPage - 2 && pageNum <= currentPage + 2)) {
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => setCurrentPage(pageNum)}
+                                className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
+                                  currentPage === pageNum ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          } else if (pageNum === currentPage - 3 || pageNum === currentPage + 3) {
+                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
+                          }
+                          return null;
+                        })}
+                      </div>
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="p-1.5 rounded border border-gray-200 text-gray-500 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Statistics Tables */}
