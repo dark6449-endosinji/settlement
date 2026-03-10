@@ -95,14 +95,14 @@ const App = () => {
   }, []);
 
   // ---------------------------------------------------------
-  // 2. 데이터 실시간 불러오기 (Firebase Firestore)
+  // 2. 데이터 실시간 불러오기 (Firebase Firestore) - 공용 데이터베이스 경로로 변경
   // ---------------------------------------------------------
   useEffect(() => {
     if (!user || !db) return;
     
     setIsLoading(true);
-    // 개인별 안전한 저장 경로 설정
-    const itemsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'settlements');
+    // [변경됨] 개인별 경로(users/user.uid) -> 모든 사람이 접근 가능한 공용 경로(public/data)
+    const itemsRef = collection(db, 'artifacts', appId, 'public', 'data', 'settlements');
     
     // onSnapshot을 통한 실시간 데이터 연동
     const unsubscribe = onSnapshot(itemsRef, (snapshot) => {
@@ -139,20 +139,20 @@ const App = () => {
     };
 
     if (editingId) {
-      // 데이터 수정
+      // 데이터 수정 [변경됨: 공용 경로 사용]
       if (user && db) {
-        const itemRef = doc(db, 'artifacts', appId, 'users', user.uid, 'settlements', editingId.toString());
+        const itemRef = doc(db, 'artifacts', appId, 'public', 'data', 'settlements', editingId.toString());
         await updateDoc(itemRef, itemData);
       } else {
         setItems(prev => prev.map(i => i.id === editingId ? { ...i, ...itemData } : i));
       }
       setEditingId(null);
     } else {
-      // 데이터 신규 추가
+      // 데이터 신규 추가 [변경됨: 공용 경로 사용]
       itemData.createdAt = new Date().toISOString();
       if (user && db) {
         const newId = Date.now().toString();
-        const itemRef = doc(db, 'artifacts', appId, 'users', user.uid, 'settlements', newId);
+        const itemRef = doc(db, 'artifacts', appId, 'public', 'data', 'settlements', newId);
         await setDoc(itemRef, { ...itemData, id: newId });
       } else {
         setItems(prev => [...prev, { ...itemData, id: Date.now().toString() }]);
@@ -200,9 +200,10 @@ const App = () => {
   };
 
   const handleDelete = async (id) => {
+    // [변경됨: 공용 경로 사용]
     if (user && db) {
       try {
-        await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settlements', id.toString()));
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settlements', id.toString()));
       } catch (error) {
         console.error("Delete error", error);
       }
@@ -226,9 +227,10 @@ const App = () => {
       settlementDate: newSettlementDate
     };
 
+    // [변경됨: 공용 경로 사용]
     if (user && db) {
       try {
-        const itemRef = doc(db, 'artifacts', appId, 'users', user.uid, 'settlements', item.id.toString());
+        const itemRef = doc(db, 'artifacts', appId, 'public', 'data', 'settlements', item.id.toString());
         await updateDoc(itemRef, updatedItem);
       } catch (error) {
         console.error("Status update error", error);
