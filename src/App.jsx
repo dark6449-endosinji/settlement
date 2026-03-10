@@ -46,6 +46,15 @@ try {
   console.error("Firebase initialization failed:", error);
 }
 
+// 로컬 타임존(한국 시간 등) 기준으로 정확한 오늘 날짜 문자열(YYYY-MM-DD)을 반환하는 헬퍼 함수
+const getTodayDateString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const App = () => {
   // 상태 관리
   const [items, setItems] = useState([]); 
@@ -70,11 +79,11 @@ const App = () => {
   });
   const [isEditingBudget, setIsEditingBudget] = useState(false);
 
-  // 입력 폼 상태
+  // 입력 폼 상태 (UTC 시간 차이 문제를 해결하기 위해 getTodayDateString 함수 사용)
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: getTodayDateString(),
     content: '',
-    brief: '', // 이제 드롭다운(select)에서 선택
+    brief: '', // 드롭다운(select)에서 선택
     details: '',
     amount: '',
     recipient: '',
@@ -183,7 +192,7 @@ const App = () => {
     }
 
     setFormData({
-      date: new Date().toISOString().split('T')[0],
+      date: getTodayDateString(),
       content: '',
       brief: '',
       details: '',
@@ -202,7 +211,7 @@ const App = () => {
   const handleCancelEdit = () => {
     setEditingId(null);
     setFormData({
-      date: new Date().toISOString().split('T')[0],
+      date: getTodayDateString(),
       content: '', brief: '', details: '', amount: '', recipient: '', status: '대기', settlementDate: ''
     });
   };
@@ -239,7 +248,7 @@ const App = () => {
   const toggleStatus = async (item) => {
     const isCompleted = item.status === '완료';
     const newStatus = isCompleted ? '대기' : '완료';
-    const newSettlementDate = isCompleted ? '' : new Date().toISOString().split('T')[0];
+    const newSettlementDate = isCompleted ? '' : getTodayDateString();
     
     const updatedItem = { 
       ...item, 
