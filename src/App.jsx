@@ -49,7 +49,9 @@ const App = () => {
   const [items, setItems] = useState([]); // 초기 데이터를 빈 배열로 시작하여 DB에서 불러옴
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('input');
+  
+  // [수정됨] 첫 화면을 '입력(input)'에서 '조회(view)'로 변경
+  const [activeTab, setActiveTab] = useState('view');
 
   // 페이지네이션 및 수정/삭제 기능 상태
   const [currentPage, setCurrentPage] = useState(1);
@@ -139,7 +141,7 @@ const App = () => {
     };
 
     if (editingId) {
-      // 데이터 수정 [변경됨: 공용 경로 사용]
+      // 데이터 수정
       if (user && db) {
         const itemRef = doc(db, 'artifacts', appId, 'public', 'data', 'settlements', editingId.toString());
         await updateDoc(itemRef, itemData);
@@ -148,7 +150,7 @@ const App = () => {
       }
       setEditingId(null);
     } else {
-      // 데이터 신규 추가 [변경됨: 공용 경로 사용]
+      // 데이터 신규 추가
       itemData.createdAt = new Date().toISOString();
       if (user && db) {
         const newId = Date.now().toString();
@@ -170,6 +172,9 @@ const App = () => {
       status: '대기',
       settlementDate: ''
     });
+    
+    // 저장 후 조회 탭으로 자동 이동 (편의성)
+    setActiveTab('view');
   };
 
   // ---------------------------------------------------------
@@ -200,7 +205,6 @@ const App = () => {
   };
 
   const handleDelete = async (id) => {
-    // [변경됨: 공용 경로 사용]
     if (user && db) {
       try {
         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settlements', id.toString()));
@@ -227,7 +231,6 @@ const App = () => {
       settlementDate: newSettlementDate
     };
 
-    // [변경됨: 공용 경로 사용]
     if (user && db) {
       try {
         const itemRef = doc(db, 'artifacts', appId, 'public', 'data', 'settlements', item.id.toString());
@@ -240,7 +243,7 @@ const App = () => {
     }
   };
 
-  // 조회 데이터 처리: 날짜순 정렬 (최신순 내림차순으로 변경)
+  // 조회 데이터 처리: 날짜순 정렬 (최신순 내림차순)
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [items]);
@@ -281,32 +284,21 @@ const App = () => {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Header - 모바일에서 로고와 탭 간격 조절 */}
+        <header className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-indigo-700 flex items-center gap-2">
-              <CreditCard className="w-8 h-8" />
+            <h1 className="text-2xl md:text-3xl font-bold text-indigo-700 flex items-center gap-2">
+              <CreditCard className="w-6 h-6 md:w-8 md:h-8" />
               Smart Settlement
             </h1>
-            <p className="text-gray-500">간편하게 정산 내역을 입력하고 관리하세요.</p>
+            <p className="text-sm md:text-base text-gray-500 mt-1">간편하게 정산 내역을 입력하고 관리하세요.</p>
           </div>
           
           {/* Tabs Navigation */}
-          <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
-            <button
-              onClick={() => setActiveTab('input')}
-              className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all ${
-                activeTab === 'input' 
-                ? 'bg-indigo-600 text-white shadow-md' 
-                : 'hover:bg-gray-100 text-gray-600'
-              }`}
-            >
-              <PlusCircle size={18} />
-              <span className="font-medium">입력</span>
-            </button>
+          <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200 w-full md:w-auto self-start">
             <button
               onClick={() => setActiveTab('view')}
-              className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all ${
+              className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-6 py-2 md:py-2.5 rounded-lg transition-all text-sm md:text-base ${
                 activeTab === 'view' 
                 ? 'bg-indigo-600 text-white shadow-md' 
                 : 'hover:bg-gray-100 text-gray-600'
@@ -314,6 +306,17 @@ const App = () => {
             >
               <Search size={18} />
               <span className="font-medium">조회</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('input')}
+              className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-6 py-2 md:py-2.5 rounded-lg transition-all text-sm md:text-base ${
+                activeTab === 'input' 
+                ? 'bg-indigo-600 text-white shadow-md' 
+                : 'hover:bg-gray-100 text-gray-600'
+              }`}
+            >
+              <PlusCircle size={18} />
+              <span className="font-medium">입력</span>
             </button>
           </div>
         </header>
@@ -329,24 +332,24 @@ const App = () => {
 
           {/* TAB 1: INPUT SCREEN */}
           {!isLoading && activeTab === 'input' && (
-            <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100 animate-in fade-in duration-300">
-              <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 border-b pb-4 text-gray-700">
-                {editingId ? <Pencil className="text-indigo-500" /> : <PlusCircle className="text-indigo-500" />}
+            <div className="bg-white rounded-2xl shadow-sm md:shadow-lg p-5 md:p-8 border border-gray-100 animate-in fade-in duration-300">
+              <h2 className="text-lg md:text-xl font-semibold mb-6 flex items-center gap-2 border-b pb-4 text-gray-700">
+                {editingId ? <Pencil className="text-indigo-500 w-5 h-5" /> : <PlusCircle className="text-indigo-500 w-5 h-5" />}
                 {editingId ? '정산 내역 수정' : '정산 내역 입력'}
               </h2>
-              <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1">
+              <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+                <div className="space-y-1.5">
                   <label className="text-sm font-semibold text-gray-600">일자 *</label>
                   <input
                     type="date"
                     name="date"
                     value={formData.date}
                     onChange={handleChange}
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none border-gray-300"
+                    className="w-full p-3 md:p-3.5 border rounded-xl focus:ring-2 focus:ring-indigo-200 outline-none border-gray-200 bg-gray-50 focus:bg-white transition-colors"
                     required
                   />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <label className="text-sm font-semibold text-gray-600">내용 *</label>
                   <input
                     type="text"
@@ -354,11 +357,11 @@ const App = () => {
                     value={formData.content}
                     onChange={handleChange}
                     placeholder="예: 사무용품 구매"
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none border-gray-300"
+                    className="w-full p-3 md:p-3.5 border rounded-xl focus:ring-2 focus:ring-indigo-200 outline-none border-gray-200 bg-gray-50 focus:bg-white transition-colors"
                     required
                   />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <label className="text-sm font-semibold text-gray-600">적요</label>
                   <input
                     type="text"
@@ -366,10 +369,10 @@ const App = () => {
                     value={formData.brief}
                     onChange={handleChange}
                     placeholder="핵심 요약 정보"
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none border-gray-300"
+                    className="w-full p-3 md:p-3.5 border rounded-xl focus:ring-2 focus:ring-indigo-200 outline-none border-gray-200 bg-gray-50 focus:bg-white transition-colors"
                   />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <label className="text-sm font-semibold text-gray-600">금액 *</label>
                   <div className="relative">
                     <input
@@ -378,23 +381,23 @@ const App = () => {
                       value={formData.amount}
                       onChange={handleChange}
                       placeholder="0"
-                      className="w-full p-3 pl-8 border rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none border-gray-300"
+                      className="w-full p-3 md:p-3.5 pl-9 md:pl-10 border rounded-xl focus:ring-2 focus:ring-indigo-200 outline-none border-gray-200 bg-gray-50 focus:bg-white transition-colors"
                       required
                     />
-                    <span className="absolute left-3 top-3.5 text-gray-400">₩</span>
+                    <span className="absolute left-3.5 top-3.5 text-gray-400 font-medium">₩</span>
                   </div>
                 </div>
-                <div className="md:col-span-2 space-y-1">
+                <div className="md:col-span-2 space-y-1.5">
                   <label className="text-sm font-semibold text-gray-600">상세</label>
                   <textarea
                     name="details"
                     value={formData.details}
                     onChange={handleChange}
                     placeholder="상세 내용을 입력하세요."
-                    className="w-full p-3 border rounded-lg h-24 focus:ring-2 focus:ring-indigo-200 outline-none border-gray-300"
+                    className="w-full p-3 md:p-3.5 border rounded-xl h-24 focus:ring-2 focus:ring-indigo-200 outline-none border-gray-200 bg-gray-50 focus:bg-white transition-colors"
                   />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <label className="text-sm font-semibold text-gray-600">수령인 *</label>
                   <input
                     type="text"
@@ -402,39 +405,39 @@ const App = () => {
                     value={formData.recipient}
                     onChange={handleChange}
                     placeholder="이름"
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none border-gray-300"
+                    className="w-full p-3 md:p-3.5 border rounded-xl focus:ring-2 focus:ring-indigo-200 outline-none border-gray-200 bg-gray-50 focus:bg-white transition-colors"
                     required
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <label className="text-sm font-semibold text-gray-600">정산현황</label>
                     <select
                       name="status"
                       value={formData.status}
                       onChange={handleChange}
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none border-gray-300"
+                      className="w-full p-3 md:p-3.5 border rounded-xl focus:ring-2 focus:ring-indigo-200 outline-none border-gray-200 bg-gray-50 focus:bg-white transition-colors"
                     >
                       <option value="대기">대기</option>
                       <option value="진행중">진행중</option>
                       <option value="완료">완료</option>
                     </select>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <label className="text-sm font-semibold text-gray-600">정산일자</label>
                     <input
                       type="date"
                       name="settlementDate"
                       value={formData.settlementDate}
                       onChange={handleChange}
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none border-gray-300"
+                      className="w-full p-3 md:p-3.5 border rounded-xl focus:ring-2 focus:ring-indigo-200 outline-none border-gray-200 bg-gray-50 focus:bg-white transition-colors text-sm md:text-base"
                     />
                   </div>
                 </div>
-                <div className="md:col-span-2 pt-4 flex gap-4">
+                <div className="md:col-span-2 pt-4 flex flex-col md:flex-row gap-3 md:gap-4">
                   <button
                     type="submit"
-                    className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-lg hover:shadow-indigo-200 flex items-center justify-center gap-2"
+                    className="flex-1 py-3.5 md:py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-md hover:shadow-indigo-200 flex items-center justify-center gap-2"
                   >
                     {editingId ? '데이터 수정하기' : '데이터 저장하기'}
                   </button>
@@ -442,7 +445,7 @@ const App = () => {
                     <button
                       type="button"
                       onClick={handleCancelEdit}
-                      className="py-4 px-8 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-xl transition-colors"
+                      className="py-3.5 md:py-4 px-8 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-xl transition-colors"
                     >
                       취소
                     </button>
@@ -454,48 +457,107 @@ const App = () => {
 
           {/* TAB 2: INQUIRY SCREEN */}
           {!isLoading && activeTab === 'view' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="space-y-4 md:space-y-6 animate-in fade-in duration-300">
               {/* Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-                  <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
-                    <ArrowUpDown size={24} />
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
+                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center gap-3 md:gap-4 col-span-2 md:col-span-1">
+                  <div className="p-2 md:p-3 bg-indigo-100 text-indigo-600 rounded-xl w-fit">
+                    <ArrowUpDown size={20} className="md:w-6 md:h-6" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">총 정산 건수</p>
-                    <p className="text-2xl font-bold">{items.length} 건</p>
+                    <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">총 정산 건수</p>
+                    <p className="text-xl md:text-2xl font-bold text-gray-800">{items.length} 건</p>
                   </div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-                  <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
-                    <TrendingUp size={24} />
+                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 md:p-2 bg-emerald-100 text-emerald-600 rounded-lg">
+                      <TrendingUp size={16} className="md:w-5 md:h-5" />
+                    </div>
+                    <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">총 정산 금액</p>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">총 정산 금액</p>
-                    <p className="text-2xl font-bold">₩{items.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString()}</p>
-                  </div>
+                  <p className="text-lg md:text-2xl font-bold text-gray-800 break-all leading-tight">₩{items.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString()}</p>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-                  <div className="p-3 bg-amber-100 text-amber-600 rounded-xl">
-                    <PieChart size={24} />
+                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 md:p-2 bg-amber-100 text-amber-600 rounded-lg">
+                      <PieChart size={16} className="md:w-5 md:h-5" />
+                    </div>
+                    <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">미정산 금액</p>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">미정산(대기) 금액</p>
-                    <p className="text-2xl font-bold">₩{items.filter(i => i.status !== '완료').reduce((acc, curr) => acc + curr.amount, 0).toLocaleString()}</p>
-                  </div>
+                  <p className="text-lg md:text-2xl font-bold text-gray-800 break-all leading-tight">₩{items.filter(i => i.status !== '완료').reduce((acc, curr) => acc + curr.amount, 0).toLocaleString()}</p>
                 </div>
               </div>
 
-              {/* Detail Table */}
+              {/* Detail List (Responsive: Cards on Mobile, Table on PC) */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 border-b border-gray-50 flex justify-between items-center">
-                  <h3 className="font-bold text-gray-700 flex items-center gap-2">
-                    <List className="w-5 h-5 text-indigo-500" />
-                    상세 내역 목록 (최신순)
+                <div className="p-4 md:p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
+                  <h3 className="font-bold text-gray-700 flex items-center gap-2 text-sm md:text-base">
+                    <List className="w-4 h-4 md:w-5 md:h-5 text-indigo-500" />
+                    상세 내역 목록
                   </h3>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
+                
+                {/* 1. Mobile Card View (md:hidden) */}
+                <div className="block md:hidden divide-y divide-gray-100">
+                  {currentItems.map((item) => (
+                    <div key={item.id} className="p-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="pr-2">
+                          <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{item.date}</span>
+                          <h4 className="font-bold text-gray-800 text-sm mt-1.5 leading-tight">{item.content}</h4>
+                          {item.details && <p className="text-xs text-gray-500 mt-1 line-clamp-1">{item.details}</p>}
+                        </div>
+                        <div className="text-right whitespace-nowrap">
+                          <div className="font-bold text-indigo-600 text-sm">₩{item.amount.toLocaleString()}</div>
+                          <div className="mt-1.5 flex justify-end">
+                            <button
+                              onClick={() => toggleStatus(item)}
+                              className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold transition-all shadow-sm ${
+                                item.status === '완료' 
+                                  ? 'bg-emerald-100 text-emerald-700' 
+                                  : 'bg-amber-100 text-amber-700'
+                              }`}
+                            >
+                              <RefreshCw size={10} className={item.status === '완료' ? 'text-emerald-500' : 'text-amber-600'} />
+                              {item.status}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-50">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50 rounded text-indigo-700 text-[11px] font-medium">
+                            <User size={10} /> {item.recipient}
+                          </span>
+                          {item.brief && <span className="text-[11px] text-gray-400">{item.brief}</span>}
+                        </div>
+                        <div className="flex gap-1.5">
+                          {deleteConfirmId === item.id ? (
+                            <div className="flex items-center gap-1 text-[10px]">
+                              <span className="text-red-500 font-bold mr-1">삭제?</span>
+                              <button onClick={() => handleDelete(item.id)} className="px-2 py-1 bg-red-100 text-red-600 rounded">예</button>
+                              <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-1 bg-gray-100 text-gray-600 rounded">아니오</button>
+                            </div>
+                          ) : (
+                            <>
+                              <button onClick={() => handleEditClick(item)} className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 rounded" title="수정"><Pencil size={14} /></button>
+                              <button onClick={() => setDeleteConfirmId(item.id)} className="p-1.5 text-gray-400 hover:text-red-600 bg-gray-50 rounded" title="삭제"><Trash2 size={14} /></button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {currentItems.length === 0 && (
+                    <div className="p-8 text-center text-gray-400 text-sm">데이터가 없습니다.</div>
+                  )}
+                </div>
+
+                {/* 2. Desktop Table View (hidden md:block) */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead className="bg-gray-50 text-gray-500 border-b">
                       <tr>
                         <th className="px-6 py-4 font-semibold">일자</th>
@@ -503,7 +565,7 @@ const App = () => {
                         <th className="px-6 py-4 font-semibold">적요</th>
                         <th className="px-6 py-4 font-semibold text-right">금액</th>
                         <th className="px-6 py-4 font-semibold text-center">수령인</th>
-                        <th className="px-6 py-4 font-semibold text-center">현황 (클릭 시 변경)</th>
+                        <th className="px-6 py-4 font-semibold text-center">현황</th>
                         <th className="px-6 py-4 font-semibold">정산일자</th>
                         <th className="px-6 py-4 font-semibold text-center">관리</th>
                       </tr>
@@ -512,19 +574,18 @@ const App = () => {
                       {currentItems.map((item) => (
                         <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 font-medium text-gray-900">{item.date}</td>
-                          <td className="px-6 py-4">
-                            <div className="font-medium">{item.content}</div>
-                            <div className="text-xs text-gray-400">{item.details}</div>
+                          <td className="px-6 py-4 whitespace-normal min-w-[150px]">
+                            <div className="font-medium text-gray-800">{item.content}</div>
+                            {item.details && <div className="text-xs text-gray-400 mt-0.5">{item.details}</div>}
                           </td>
                           <td className="px-6 py-4 text-gray-500">{item.brief}</td>
                           <td className="px-6 py-4 text-right font-bold text-indigo-600">₩{item.amount.toLocaleString()}</td>
                           <td className="px-6 py-4 text-center">
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-gray-600">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-gray-600 text-xs font-medium">
                               <User size={12} /> {item.recipient}
                             </span>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            {/* 토글 버튼으로 변경 */}
                             <button
                               onClick={() => toggleStatus(item)}
                               title="클릭하여 상태 변경"
@@ -580,37 +641,36 @@ const App = () => {
                 
                 {/* Pagination Controls */}
                 {sortedItems.length > 0 && (
-                  <div className="px-6 py-4 border-t border-gray-50 flex items-center justify-between bg-gray-50/50">
-                    <span className="text-sm text-gray-500">
-                      총 <span className="font-bold text-gray-900">{sortedItems.length}</span>건 중 
-                      {' '} <span className="font-bold text-gray-900">{sortedItems.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span> 
-                      - <span className="font-bold text-gray-900">{Math.min(currentPage * ITEMS_PER_PAGE, sortedItems.length)}</span>건
+                  <div className="px-4 md:px-6 py-3 md:py-4 border-t border-gray-50 flex flex-col md:flex-row items-center justify-between gap-3 bg-gray-50/50">
+                    <span className="text-xs md:text-sm text-gray-500">
+                      총 <span className="font-bold text-gray-900">{sortedItems.length}</span>건 
+                      <span className="hidden md:inline"> 중 <span className="font-bold text-gray-900">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> - <span className="font-bold text-gray-900">{Math.min(currentPage * ITEMS_PER_PAGE, sortedItems.length)}</span>건</span>
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 md:gap-2">
                       <button
                         onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                         disabled={currentPage === 1}
-                        className="p-1.5 rounded border border-gray-200 text-gray-500 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="p-1.5 rounded border border-gray-200 text-gray-500 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-white md:bg-transparent"
                       >
                         <ChevronLeft size={16} />
                       </button>
                       <div className="flex items-center gap-1">
                         {Array.from({ length: totalPages }).map((_, idx) => {
                           const pageNum = idx + 1;
-                          if (pageNum === 1 || pageNum === totalPages || (pageNum >= currentPage - 2 && pageNum <= currentPage + 2)) {
+                          if (pageNum === 1 || pageNum === totalPages || (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)) {
                             return (
                               <button
                                 key={pageNum}
                                 onClick={() => setCurrentPage(pageNum)}
-                                className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
-                                  currentPage === pageNum ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
+                                className={`w-7 h-7 md:w-8 md:h-8 rounded text-xs md:text-sm font-medium transition-colors ${
+                                  currentPage === pageNum ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100 bg-white md:bg-transparent'
                                 }`}
                               >
                                 {pageNum}
                               </button>
                             );
-                          } else if (pageNum === currentPage - 3 || pageNum === currentPage + 3) {
-                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
+                          } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
+                            return <span key={pageNum} className="text-gray-400 px-0.5 md:px-1 text-xs md:text-sm">...</span>;
                           }
                           return null;
                         })}
@@ -618,7 +678,7 @@ const App = () => {
                       <button
                         onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                         disabled={currentPage === totalPages}
-                        className="p-1.5 rounded border border-gray-200 text-gray-500 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="p-1.5 rounded border border-gray-200 text-gray-500 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-white md:bg-transparent"
                       >
                         <ChevronRight size={16} />
                       </button>
@@ -628,57 +688,63 @@ const App = () => {
               </div>
 
               {/* Statistics Tables */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 {/* Monthly Total */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-                  <div className="p-4 border-b bg-gray-50 rounded-t-2xl font-bold flex items-center gap-2">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="p-3 md:p-4 border-b bg-gray-50/80 font-bold flex items-center gap-2 text-sm md:text-base text-gray-700">
                     <Calendar size={18} className="text-indigo-500" /> 월별 합계
                   </div>
-                  <div className="p-2">
-                    <table className="w-full">
+                  <div className="p-0 md:p-2">
+                    <table className="w-full text-sm md:text-base">
                       <thead>
-                        <tr className="text-xs text-gray-400 border-b">
-                          <th className="px-4 py-2 text-left">월 (Year-Month)</th>
-                          <th className="px-4 py-2 text-right">합계 금액</th>
+                        <tr className="text-[11px] md:text-xs text-gray-400 border-b bg-white">
+                          <th className="px-4 py-2 text-left font-medium">월 (Year-Month)</th>
+                          <th className="px-4 py-2 text-right font-medium">합계 금액</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y">
+                      <tbody className="divide-y divide-gray-50">
                         {monthlyTotals.map(([month, total]) => (
-                          <tr key={month} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 font-medium">{month}</td>
-                            <td className="px-4 py-3 text-right font-bold text-emerald-600">₩{total.toLocaleString()}</td>
+                          <tr key={month} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-2.5 md:py-3 font-medium text-gray-700">{month}</td>
+                            <td className="px-4 py-2.5 md:py-3 text-right font-bold text-emerald-600">₩{total.toLocaleString()}</td>
                           </tr>
                         ))}
+                        {monthlyTotals.length === 0 && (
+                          <tr><td colSpan="2" className="text-center py-4 text-xs text-gray-400">데이터가 없습니다.</td></tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
                 </div>
 
                 {/* Recipient Total */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-                  <div className="p-4 border-b bg-gray-50 rounded-t-2xl font-bold flex items-center gap-2">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="p-3 md:p-4 border-b bg-gray-50/80 font-bold flex items-center gap-2 text-sm md:text-base text-gray-700">
                     <User size={18} className="text-indigo-500" /> 수령인별 합계
                   </div>
-                  <div className="p-2">
-                    <table className="w-full">
+                  <div className="p-0 md:p-2">
+                    <table className="w-full text-sm md:text-base">
                       <thead>
-                        <tr className="text-xs text-gray-400 border-b">
-                          <th className="px-4 py-2 text-left">수령인</th>
-                          <th className="px-4 py-2 text-right">합계 금액</th>
+                        <tr className="text-[11px] md:text-xs text-gray-400 border-b bg-white">
+                          <th className="px-4 py-2 text-left font-medium">수령인</th>
+                          <th className="px-4 py-2 text-right font-medium">합계 금액</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y">
+                      <tbody className="divide-y divide-gray-50">
                         {recipientTotals.map(([name, total]) => (
-                          <tr key={name} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 font-medium flex items-center gap-2">
-                               <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center text-[10px] text-indigo-600 font-bold">
+                          <tr key={name} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-2.5 md:py-3 font-medium flex items-center gap-2 text-gray-700">
+                               <div className="w-5 h-5 md:w-6 md:h-6 bg-indigo-100 rounded-full flex items-center justify-center text-[9px] md:text-[10px] text-indigo-600 font-bold flex-shrink-0">
                                 {name.substring(0,1)}
                                </div>
-                               {name}
+                               <span className="truncate max-w-[100px] md:max-w-none">{name}</span>
                             </td>
-                            <td className="px-4 py-3 text-right font-bold text-indigo-600">₩{total.toLocaleString()}</td>
+                            <td className="px-4 py-2.5 md:py-3 text-right font-bold text-indigo-600">₩{total.toLocaleString()}</td>
                           </tr>
                         ))}
+                        {recipientTotals.length === 0 && (
+                          <tr><td colSpan="2" className="text-center py-4 text-xs text-gray-400">데이터가 없습니다.</td></tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -688,7 +754,7 @@ const App = () => {
           )}
         </main>
 
-        <footer className="mt-12 text-center text-gray-400 text-sm pb-8">
+        <footer className="mt-8 md:mt-12 text-center text-gray-400 text-xs md:text-sm pb-8">
           &copy; 2024 Settlement Management System. All rights reserved.
         </footer>
       </div>
