@@ -299,6 +299,7 @@ const App = () => {
     }
   }, [totalPages, currentPage]);
 
+  // 통계용 월별 합계 데이터
   const monthlyTotals = useMemo(() => {
     const groups = {};
     items.forEach(item => {
@@ -308,6 +309,7 @@ const App = () => {
     return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
   }, [items]);
 
+  // 통계용 수령인별 합계 데이터
   const recipientTotals = useMemo(() => {
     const groups = {};
     items.forEach(item => {
@@ -740,6 +742,70 @@ const App = () => {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* [복구됨] Statistics Tables (월별 합계 & 수령인별 합계) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mt-4">
+                {/* Monthly Total */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="p-3 md:p-4 border-b bg-gray-50/80 font-bold flex items-center gap-2 text-sm md:text-base text-gray-700">
+                    <Calendar size={18} className="text-indigo-500" /> 월별 합계
+                  </div>
+                  <div className="p-0 md:p-2">
+                    <table className="w-full text-sm md:text-base">
+                      <thead>
+                        <tr className="text-[11px] md:text-xs text-gray-400 border-b bg-white">
+                          <th className="px-4 py-2 text-left font-medium">월 (Year-Month)</th>
+                          <th className="px-4 py-2 text-right font-medium">합계 금액</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {monthlyTotals.map(([month, total]) => (
+                          <tr key={month} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-2.5 md:py-3 font-medium text-gray-700">{month}</td>
+                            <td className="px-4 py-2.5 md:py-3 text-right font-bold text-emerald-600">₩{total.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                        {monthlyTotals.length === 0 && (
+                          <tr><td colSpan="2" className="text-center py-4 text-xs text-gray-400">데이터가 없습니다.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Recipient Total */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="p-3 md:p-4 border-b bg-gray-50/80 font-bold flex items-center gap-2 text-sm md:text-base text-gray-700">
+                    <User size={18} className="text-indigo-500" /> 수령인별 합계
+                  </div>
+                  <div className="p-0 md:p-2">
+                    <table className="w-full text-sm md:text-base">
+                      <thead>
+                        <tr className="text-[11px] md:text-xs text-gray-400 border-b bg-white">
+                          <th className="px-4 py-2 text-left font-medium">수령인</th>
+                          <th className="px-4 py-2 text-right font-medium">합계 금액</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {recipientTotals.map(([name, total]) => (
+                          <tr key={name} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-2.5 md:py-3 font-medium flex items-center gap-2 text-gray-700">
+                               <div className="w-5 h-5 md:w-6 md:h-6 bg-indigo-100 rounded-full flex items-center justify-center text-[9px] md:text-[10px] text-indigo-600 font-bold flex-shrink-0">
+                                {name.substring(0,1)}
+                               </div>
+                               <span className="truncate max-w-[100px] md:max-w-none">{name}</span>
+                            </td>
+                            <td className="px-4 py-2.5 md:py-3 text-right font-bold text-indigo-600">₩{total.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                        {recipientTotals.length === 0 && (
+                          <tr><td colSpan="2" className="text-center py-4 text-xs text-gray-400">데이터가 없습니다.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
           )}
