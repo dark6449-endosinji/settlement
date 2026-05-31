@@ -18,7 +18,9 @@ const InputTab = ({ editingItem, onSave, onCancel }) => {
     amount: '',
     recipient: '',
     status: '대기',
-    settlementDate: ''
+    settlementDate: '',
+    paymentStatus: '대기',
+    paymentDate: ''
   });
 
   useEffect(() => {
@@ -31,7 +33,9 @@ const InputTab = ({ editingItem, onSave, onCancel }) => {
         amount: editingItem.amount.toString(),
         recipient: editingItem.recipient,
         status: editingItem.status,
-        settlementDate: editingItem.settlementDate || ''
+        settlementDate: editingItem.settlementDate || '',
+        paymentStatus: editingItem.paymentStatus || '대기',
+        paymentDate: editingItem.paymentDate || ''
       });
     } else {
       setFormData({
@@ -42,7 +46,9 @@ const InputTab = ({ editingItem, onSave, onCancel }) => {
         amount: '',
         recipient: '',
         status: '대기',
-        settlementDate: ''
+        settlementDate: '',
+        paymentStatus: '대기',
+        paymentDate: ''
       });
     }
   }, [editingItem]);
@@ -169,6 +175,30 @@ const InputTab = ({ editingItem, onSave, onCancel }) => {
               type="date"
               name="settlementDate"
               value={formData.settlementDate}
+              onChange={handleChange}
+              className="w-full p-3 md:p-3.5 border rounded-xl focus:ring-2 focus:ring-indigo-200 outline-none border-gray-200 bg-gray-50 focus:bg-white transition-colors text-sm md:text-base"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-gray-600">지급</label>
+            <select
+              name="paymentStatus"
+              value={formData.paymentStatus}
+              onChange={handleChange}
+              className="w-full p-3 md:p-3.5 border rounded-xl focus:ring-2 focus:ring-indigo-200 outline-none border-gray-200 bg-gray-50 focus:bg-white transition-colors"
+            >
+              <option value="대기">대기</option>
+              <option value="지급">지급</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-gray-600">지급일자</label>
+            <input
+              type="date"
+              name="paymentDate"
+              value={formData.paymentDate}
               onChange={handleChange}
               className="w-full p-3 md:p-3.5 border rounded-xl focus:ring-2 focus:ring-indigo-200 outline-none border-gray-200 bg-gray-50 focus:bg-white transition-colors text-sm md:text-base"
             />

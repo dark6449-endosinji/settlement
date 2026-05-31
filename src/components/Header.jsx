@@ -1,5 +1,5 @@
 import React from 'react';
-import { CreditCard, Search, PlusCircle, Wallet, LogIn, LogOut } from 'lucide-react';
+import { CreditCard, BarChart2, PlusCircle, Wallet, LogIn, LogOut, Banknote } from 'lucide-react';
 
 const Header = ({ activeTab, setActiveTab, isAdmin, onLoginClick, onLogoutClick }) => {
   return (
@@ -21,8 +21,18 @@ const Header = ({ activeTab, setActiveTab, isAdmin, onLoginClick, onLogoutClick 
               activeTab === 'view' ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-gray-100 text-gray-600'
             }`}
           >
-            <Search size={16} />
-            <span className="font-medium">조회</span>
+            <BarChart2 size={16} />
+            <span className="font-medium">정산 현황</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('advance')}
+            className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 md:px-5 py-2 md:py-2.5 rounded-lg transition-all text-sm md:text-base ${
+              activeTab === 'advance' ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-gray-100 text-gray-600'
+            }`}
+          >
+            <Banknote size={16} />
+            <span className="font-medium">전도금 현황</span>
           </button>
           
           {isAdmin && (

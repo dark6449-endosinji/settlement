@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import ViewTab from './components/ViewTab';
 import InputTab from './components/InputTab';
 import BudgetTab from './components/BudgetTab';
+import AdvanceTab from './components/AdvanceTab';
 import AdminLoginModal from './components/AdminLoginModal';
 
 import { app, auth, db, appId } from './firebase/config';
@@ -11,6 +12,7 @@ import { collection, doc, setDoc, onSnapshot, deleteDoc, updateDoc } from 'fireb
 
 const App = () => {
   const [items, setItems] = useState([]);
+  const [advances, setAdvances] = useState([]);
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,6 +74,12 @@ const App = () => {
       setIsLoading(false);
     });
 
+    const advancesRef = collection(db, 'artifacts', appId, 'public', 'data', 'advances');
+    const unsubscribeAdvances = onSnapshot(advancesRef, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setAdvances(data);
+    }, (error) => console.error("Advances Fetch Error:", error));
+
     const budgetRef = doc(db, 'artifacts', appId, 'public', 'data', 'budget', 'current');
     const unsubscribeBudget = onSnapshot(budgetRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -81,6 +89,7 @@ const App = () => {
 
     return () => {
       unsubscribeItems();
+      unsubscribeAdvances();
       unsubscribeBudget();
     };
   }, [user]);
@@ -156,6 +165,32 @@ const App = () => {
     }
   };
 
+  const handleTogglePayment = async (item) => {
+    if (!isAdmin) return;
+    const isPaid = item.paymentStatus === '지급';
+    const newPaymentStatus = isPaid ? '대기' : '지급';
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const newPaymentDate = isPaid ? '' : today;
+
+    const updatedItem = {
+      ...item,
+      paymentStatus: newPaymentStatus,
+      paymentDate: newPaymentDate
+    };
+
+    if (db) {
+      try {
+        const itemRef = doc(db, 'artifacts', appId, 'public', 'data', 'settlements', item.id.toString());
+        await updateDoc(itemRef, updatedItem);
+      } catch (error) {
+        console.error("Payment update error", error);
+      }
+    } else {
+      setItems(prev => prev.map(i => i.id === item.id ? updatedItem : i));
+    }
+  };
+
   const handleEditClick = (item) => {
     if (!isAdmin) return;
     setEditingItem(item);
@@ -172,6 +207,35 @@ const App = () => {
       } catch (error) {
         console.error("Budget save error:", error);
       }
+    }
+  };
+
+  const handleAddAdvance = async ({ date, amount, brief }) => {
+    if (!isAdmin) return;
+    const newId = Date.now().toString();
+    const data = { id: newId, date, amount: Number(amount), brief: brief || '', createdAt: new Date().toISOString() };
+    if (db) {
+      try {
+        const advRef = doc(db, 'artifacts', appId, 'public', 'data', 'advances', newId);
+        await setDoc(advRef, data);
+      } catch (error) {
+        console.error("Advance save error:", error);
+      }
+    } else {
+      setAdvances(prev => [...prev, data]);
+    }
+  };
+
+  const handleDeleteAdvance = async (id) => {
+    if (!isAdmin) return;
+    if (db) {
+      try {
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'advances', id.toString()));
+      } catch (error) {
+        console.error("Advance delete error:", error);
+      }
+    } else {
+      setAdvances(prev => prev.filter(a => a.id !== id));
     }
   };
 
@@ -218,7 +282,8 @@ const App = () => {
               isAdmin={isAdmin} 
               onEditClick={handleEditClick} 
               onDelete={handleDeleteItem} 
-              onToggleStatus={handleToggleStatus} 
+              onToggleStatus={handleToggleStatus}
+              onTogglePayment={handleTogglePayment}
             />
           )}
 
@@ -227,6 +292,16 @@ const App = () => {
               editingItem={editingItem} 
               onSave={handleSaveItem} 
               onCancel={() => { setEditingItem(null); setActiveTab('view'); }} 
+            />
+          )}
+
+          {!isLoading && activeTab === 'advance' && (
+            <AdvanceTab
+              advances={advances}
+              settlementItems={items}
+              isAdmin={isAdmin}
+              onAddAdvance={handleAddAdvance}
+              onDeleteAdvance={handleDeleteAdvance}
             />
           )}
 

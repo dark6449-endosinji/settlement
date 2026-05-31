@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { List, User, RefreshCw, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, ArrowUpDown, TrendingUp, PieChart } from 'lucide-react';
+import { List, User, RefreshCw, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, ArrowUpDown, TrendingUp, PieChart, Banknote } from 'lucide-react';
 
-const ViewTab = ({ items, isAdmin, onEditClick, onDelete, onToggleStatus }) => {
+const ViewTab = ({ items, isAdmin, onEditClick, onDelete, onToggleStatus, onTogglePayment }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const ITEMS_PER_PAGE = 10;
@@ -93,7 +93,7 @@ const ViewTab = ({ items, isAdmin, onEditClick, onDelete, onToggleStatus }) => {
                 </div>
                 <div className="text-right whitespace-nowrap">
                   <div className="font-bold text-indigo-600 text-sm">₩{item.amount.toLocaleString()}</div>
-                  <div className="mt-1.5 flex justify-end">
+                  <div className="mt-1.5 flex justify-end gap-1">
                     <button
                       onClick={() => isAdmin && onToggleStatus(item)}
                       disabled={!isAdmin}
@@ -104,15 +104,26 @@ const ViewTab = ({ items, isAdmin, onEditClick, onDelete, onToggleStatus }) => {
                       <RefreshCw size={10} className={item.status === '완료' ? 'text-emerald-500' : 'text-amber-600'} />
                       {item.status}
                     </button>
+                    <button
+                      onClick={() => isAdmin && onTogglePayment(item)}
+                      disabled={!isAdmin}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold transition-all shadow-sm ${
+                        item.paymentStatus === '지급' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                      } ${!isAdmin && 'opacity-70 cursor-not-allowed'}`}
+                    >
+                      <Banknote size={10} />
+                      {item.paymentStatus || '대기'}
+                    </button>
                   </div>
                 </div>
               </div>
               <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-50">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50 rounded text-indigo-700 text-[11px] font-medium">
                     <User size={10} /> {item.recipient}
                   </span>
                   {item.brief && <span className="text-[11px] font-semibold text-rose-500 bg-rose-50 px-1 rounded">{item.brief}</span>}
+                  {item.paymentDate && <span className="text-[10px] text-blue-500 font-medium">지급 {item.paymentDate}</span>}
                 </div>
                 {isAdmin && (
                   <div className="flex gap-1.5">
@@ -148,6 +159,8 @@ const ViewTab = ({ items, isAdmin, onEditClick, onDelete, onToggleStatus }) => {
                 <th className="px-6 py-4 font-semibold text-center">수령인</th>
                 <th className="px-6 py-4 font-semibold text-center">현황</th>
                 <th className="px-6 py-4 font-semibold">정산일자</th>
+                <th className="px-6 py-4 font-semibold text-center">지급</th>
+                <th className="px-6 py-4 font-semibold">지급일자</th>
                 {isAdmin && <th className="px-6 py-4 font-semibold text-center">관리</th>}
               </tr>
             </thead>
@@ -176,6 +189,18 @@ const ViewTab = ({ items, isAdmin, onEditClick, onDelete, onToggleStatus }) => {
                     </button>
                   </td>
                   <td className="px-6 py-4 text-gray-500">{item.settlementDate || '-'}</td>
+                  <td className="px-6 py-4 text-center">
+                    <button
+                      onClick={() => isAdmin && onTogglePayment(item)}
+                      disabled={!isAdmin}
+                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm ${
+                        item.paymentStatus === '지급' ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      } ${!isAdmin && 'opacity-70 cursor-not-allowed hover:bg-opacity-100'}`}
+                    >
+                      <Banknote size={12} /> {item.paymentStatus || '대기'}
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 text-gray-500">{item.paymentDate || '-'}</td>
                   {isAdmin && (
                     <td className="px-6 py-4 text-center">
                       {deleteConfirmId === item.id ? (
@@ -194,7 +219,7 @@ const ViewTab = ({ items, isAdmin, onEditClick, onDelete, onToggleStatus }) => {
                   )}
                 </tr>
               ))}
-              {currentItems.length === 0 && <tr><td colSpan={isAdmin ? 8 : 7} className="px-6 py-12 text-center text-gray-400">데이터가 없습니다.</td></tr>}
+              {currentItems.length === 0 && <tr><td colSpan={isAdmin ? 10 : 9} className="px-6 py-12 text-center text-gray-400">데이터가 없습니다.</td></tr>}
             </tbody>
           </table>
         </div>
