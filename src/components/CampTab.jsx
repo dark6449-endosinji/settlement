@@ -307,14 +307,11 @@ const CampTab = ({
 
       {/* ══ BLOCK 2: 비용 현황 (행사비만) ══ */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 md:p-5 border-b border-gray-100 bg-gray-50/30 flex items-start md:items-center gap-2">
-          <LayoutGrid size={18} className="text-indigo-500 mt-0.5 md:mt-0 flex-shrink-0" />
-          <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2">
-            <h2 className="font-bold text-gray-700 text-sm md:text-base leading-tight">
-              비용<br className="block md:hidden" />현황
-            </h2>
-            <span className="text-[10px] md:text-xs text-gray-400">※ 정산현황의 행사비 항목이 자동 반영됩니다</span>
-          </div>
+        <div className="p-4 md:p-5 border-b border-gray-100 bg-gray-50/30 flex items-center gap-2">
+          <LayoutGrid size={18} className="text-indigo-500 flex-shrink-0" />
+          <h2 className="font-bold text-gray-700 text-sm md:text-base">
+            비용 현황
+          </h2>
         </div>
 
         {/* Mobile */}
