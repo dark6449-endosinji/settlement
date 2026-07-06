@@ -178,16 +178,29 @@ const CampTab = ({
         </div>
 
         {/* 기부금 섹션 */}
-        <div className="border-b border-gray-100">
-          {/* 기부금 헤더 — 총액 크게 */}
-          <div className="px-4 md:px-6 pt-4 pb-3 bg-emerald-50/30">
-            <div className="flex items-center justify-between">
+        <div className="border-b border-gray-100 bg-gray-50/10">
+          {/* 기부금 요약 카드 (행사비/회비와 동일 포맷) */}
+          <div className="px-4 md:px-6 py-4">
+            <div className="flex items-center gap-2 mb-3">
               <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />기부금
               </span>
-              <span className="text-[10px] text-gray-400">{sortedDonations.length}건</span>
+              <span className="text-[10px] text-gray-400">※ 수입 항목 ({sortedDonations.length}건)</span>
             </div>
-            <p className="text-2xl font-bold text-emerald-700 mt-1">₩{fmt(totalDonation)}</p>
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <div className="bg-white rounded-xl p-3 border border-gray-100">
+                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">예산액</p>
+                <p className="font-bold text-gray-800 text-sm break-all">₩{fmt(totalDonation)}</p>
+              </div>
+              <div className="bg-white rounded-xl p-3 border border-gray-100">
+                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">사용액</p>
+                <p className="text-gray-400 text-xs pt-1">해당없음</p>
+              </div>
+              <div className="bg-white rounded-xl p-3 border border-gray-100">
+                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">잔여</p>
+                <p className="text-gray-400 text-sm">-</p>
+              </div>
+            </div>
           </div>
 
           {/* 기부금 입력 폼 (관리자) */}
