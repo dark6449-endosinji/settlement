@@ -4,6 +4,7 @@ import ViewTab from './components/ViewTab';
 import InputTab from './components/InputTab';
 import BudgetTab from './components/BudgetTab';
 import AdvanceTab from './components/AdvanceTab';
+import CampTab from './components/CampTab';
 import AdminLoginModal from './components/AdminLoginModal';
 
 import { app, auth, db, appId } from './firebase/config';
@@ -13,6 +14,11 @@ import { collection, doc, setDoc, onSnapshot, deleteDoc, updateDoc } from 'fireb
 const App = () => {
   const [items, setItems] = useState([]);
   const [advances, setAdvances] = useState([]);
+  const [campCosts, setCampCosts] = useState([]);
+  const [campBudget, setCampBudget] = useState({
+    행사비: 4000000,
+    기부금: 0
+  });
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,10 +93,25 @@ const App = () => {
       }
     }, (error) => console.error("Budget Fetch Error:", error));
 
+    const campCostsRef = collection(db, 'artifacts', appId, 'public', 'data', 'camp_costs');
+    const unsubscribeCampCosts = onSnapshot(campCostsRef, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setCampCosts(data);
+    }, (error) => console.error("Camp Costs Fetch Error:", error));
+
+    const campBudgetRef = doc(db, 'artifacts', appId, 'public', 'data', 'camp_budget', 'current');
+    const unsubscribeCampBudget = onSnapshot(campBudgetRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setCampBudget(snapshot.data());
+      }
+    }, (error) => console.error("Camp Budget Fetch Error:", error));
+
     return () => {
       unsubscribeItems();
       unsubscribeAdvances();
       unsubscribeBudget();
+      unsubscribeCampCosts();
+      unsubscribeCampBudget();
     };
   }, [user]);
 
@@ -239,6 +260,47 @@ const App = () => {
     }
   };
 
+  const handleSaveCampBudget = async () => {
+    if (!isAdmin) return;
+    if (db) {
+      try {
+        const campBudgetRef = doc(db, 'artifacts', appId, 'public', 'data', 'camp_budget', 'current');
+        await setDoc(campBudgetRef, campBudget);
+      } catch (error) {
+        console.error("Camp Budget save error:", error);
+      }
+    }
+  };
+
+  const handleAddCampCost = async ({ date, category, description, amount }) => {
+    if (!isAdmin) return;
+    const newId = Date.now().toString();
+    const data = { id: newId, date, category, description: description || '', amount: Number(amount), createdAt: new Date().toISOString() };
+    if (db) {
+      try {
+        const costRef = doc(db, 'artifacts', appId, 'public', 'data', 'camp_costs', newId);
+        await setDoc(costRef, data);
+      } catch (error) {
+        console.error("Camp Cost save error:", error);
+      }
+    } else {
+      setCampCosts(prev => [...prev, data]);
+    }
+  };
+
+  const handleDeleteCampCost = async (id) => {
+    if (!isAdmin) return;
+    if (db) {
+      try {
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'camp_costs', id.toString()));
+      } catch (error) {
+        console.error("Camp Cost delete error:", error);
+      }
+    } else {
+      setCampCosts(prev => prev.filter(c => c.id !== id));
+    }
+  };
+
   const handleLogout = async () => {
     if (auth) {
       await signOut(auth);
@@ -312,6 +374,18 @@ const App = () => {
               items={items} 
               isAdmin={isAdmin} 
               handleSaveBudget={handleSaveBudget} 
+            />
+          )}
+
+          {!isLoading && activeTab === 'camp' && (
+            <CampTab
+              campBudget={campBudget}
+              setCampBudget={setCampBudget}
+              campCosts={campCosts}
+              isAdmin={isAdmin}
+              onSaveCampBudget={handleSaveCampBudget}
+              onAddCampCost={handleAddCampCost}
+              onDeleteCampCost={handleDeleteCampCost}
             />
           )}
         </main>

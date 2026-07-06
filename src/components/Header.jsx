@@ -1,5 +1,5 @@
 import React from 'react';
-import { CreditCard, BarChart2, PlusCircle, Wallet, LogIn, LogOut, Banknote } from 'lucide-react';
+import { CreditCard, BarChart2, PlusCircle, Wallet, LogIn, LogOut, Banknote, Tent } from 'lucide-react';
 
 const Header = ({ activeTab, setActiveTab, isAdmin, onLoginClick, onLogoutClick }) => {
   return (
@@ -55,6 +55,16 @@ const Header = ({ activeTab, setActiveTab, isAdmin, onLoginClick, onLogoutClick 
           >
             <Wallet size={16} />
             <span className="font-medium">예산</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('camp')}
+            className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 md:px-5 py-2 md:py-2.5 rounded-lg transition-all text-sm md:text-base ${
+              activeTab === 'camp' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-gray-100 text-gray-600'
+            }`}
+          >
+            <Tent size={16} />
+            <span className="font-medium">여름캠프</span>
           </button>
         </div>
 
