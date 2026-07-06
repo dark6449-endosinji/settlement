@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Tent, Wallet, PlusCircle, Trash2, Calendar, Tag, Pencil, Save, LayoutGrid, TrendingDown, TrendingUp } from 'lucide-react';
+import { Wallet, PlusCircle, Trash2, Calendar, Tag, Pencil, Save, LayoutGrid, TrendingDown, TrendingUp, Link } from 'lucide-react';
 
 const CATEGORIES = ['행사비', '기부금'];
 
@@ -11,56 +11,59 @@ const CAT_COLORS = {
 const fmt = (n) => (isNaN(Number(n)) ? '0' : Number(n).toLocaleString());
 
 const CampTab = ({
-  campBudget,
-  setCampBudget,
-  campCosts,
+  campBudget, setCampBudget,
+  campCosts, settlementItems,
   isAdmin,
-  onSaveCampBudget,
-  onAddCampCost,
-  onDeleteCampCost,
+  onSaveCampBudget, onAddCampCost, onDeleteCampCost,
 }) => {
-  // ── 예산 편집 상태 ──
   const [isEditingBudget, setIsEditingBudget] = useState(false);
-
-  // ── 비용 입력 폼 상태 ──
-  const [form, setForm] = useState({ date: '', category: '', description: '', amount: '' });
+  const [form, setForm] = useState({ date: '', category: '기부금', description: '', amount: '' });
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-  // ── 계산 ──
-  const spent = useMemo(() => {
-    const s = { 행사비: 0, 기부금: 0 };
-    campCosts.forEach((c) => { if (s[c.category] !== undefined) s[c.category] += c.amount; });
-    return s;
-  }, [campCosts]);
-
-  const totalBudget = useMemo(() => CATEGORIES.reduce((a, k) => a + (campBudget[k] || 0), 0), [campBudget]);
-  const totalSpent  = useMemo(() => campCosts.reduce((a, c) => a + c.amount, 0), [campCosts]);
-  const totalRemain = totalBudget - totalSpent;
-
-  const sortedCosts = useMemo(
-    () => [...campCosts].sort((a, b) => new Date(b.date) - new Date(a.date)),
-    [campCosts]
+  // 정산현황에서 행사비 항목만 필터
+  const settlementEventCosts = useMemo(
+    () => (settlementItems || []).filter((i) => i.brief === '행사비'),
+    [settlementItems]
   );
 
-  // ── 핸들러 ──
+  // 행사비 사용액 = 정산현황 행사비 합산 / 기부금 사용액 = campCosts 합산
+  const spent = useMemo(() => ({
+    행사비: settlementEventCosts.reduce((a, i) => a + i.amount, 0),
+    기부금: campCosts.filter((c) => c.category === '기부금').reduce((a, c) => a + c.amount, 0),
+  }), [settlementEventCosts, campCosts]);
+
+  const totalBudget = useMemo(() => CATEGORIES.reduce((a, k) => a + (campBudget[k] || 0), 0), [campBudget]);
+  const totalSpent  = useMemo(() => spent.행사비 + spent.기부금, [spent]);
+  const totalRemain = totalBudget - totalSpent;
+
+  // 비용 현황 목록: 정산현황 행사비 + campCosts(기부금), 날짜 내림차순
+  const mergedList = useMemo(() => {
+    const fromSettlement = settlementEventCosts.map((i) => ({
+      id: i.id,
+      date: i.date,
+      category: '행사비',
+      description: i.description || i.content || '',
+      amount: i.amount,
+      _source: 'settlement',
+    }));
+    const fromCamp = campCosts.map((c) => ({ ...c, _source: 'camp' }));
+    return [...fromSettlement, ...fromCamp].sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [settlementEventCosts, campCosts]);
+
   const handleFormChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
   const handleAddCost = (e) => {
     e.preventDefault();
-    if (!form.date || !form.category || !form.amount) return;
-    onAddCampCost({ ...form, amount: Number(form.amount) });
-    setForm({ date: '', category: '', description: '', amount: '' });
+    if (!form.date || !form.amount) return;
+    onAddCampCost({ ...form, category: '기부금', amount: Number(form.amount) });
+    setForm({ date: '', category: '기부금', description: '', amount: '' });
   };
 
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in duration-300">
 
-      {/* ══════════════════════════════════
-           BLOCK 1 — 예산 현황
-         ══════════════════════════════════ */}
+      {/* ── BLOCK 1: 예산 현황 ── */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-
-        {/* 헤더 */}
         <div className="p-4 md:p-5 border-b border-gray-100 bg-emerald-50/40 flex justify-between items-center">
           <h2 className="font-bold text-gray-700 flex items-center gap-2 text-sm md:text-base">
             <Wallet className="w-5 h-5 text-emerald-500" />
@@ -68,38 +71,32 @@ const CampTab = ({
           </h2>
           {isAdmin && (
             isEditingBudget ? (
-              <button
-                onClick={() => { onSaveCampBudget(); setIsEditingBudget(false); }}
-                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
-              >
+              <button onClick={() => { onSaveCampBudget(); setIsEditingBudget(false); }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">
                 <Save size={16} /> 저장
               </button>
             ) : (
-              <button
-                onClick={() => setIsEditingBudget(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm font-bold rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-              >
+              <button onClick={() => setIsEditingBudget(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm font-bold rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
                 <Pencil size={16} /> 예산 설정
               </button>
             )
           )}
         </div>
 
-        {/* 요약 카드 3개 */}
+        {/* 요약 카드 */}
         <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
           {[
-            { label: '총 예산', value: totalBudget, color: 'text-gray-800', icon: <Wallet size={16} />, iconBg: 'bg-emerald-100 text-emerald-600' },
-            { label: '총 사용액', value: totalSpent, color: 'text-rose-600', icon: <TrendingUp size={16} />, iconBg: 'bg-rose-100 text-rose-500', prefix: '- ' },
-            { label: '잔여 예산', value: Math.abs(totalRemain), color: totalRemain >= 0 ? 'text-emerald-700' : 'text-red-600', icon: <TrendingDown size={16} />, iconBg: totalRemain >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-500', suffix: totalRemain < 0 ? ' (초과)' : '' },
-          ].map(({ label, value, color, icon, iconBg, prefix = '', suffix = '' }) => (
+            { label: '총 예산', value: totalBudget, color: 'text-gray-800', iconBg: 'bg-emerald-100 text-emerald-600', icon: <Wallet size={16} />, prefix: '' },
+            { label: '총 사용액', value: totalSpent, color: 'text-rose-600', iconBg: 'bg-rose-100 text-rose-500', icon: <TrendingUp size={16} />, prefix: '- ' },
+            { label: '잔여 예산', value: Math.abs(totalRemain), color: totalRemain >= 0 ? 'text-emerald-700' : 'text-red-600', iconBg: totalRemain >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-500', icon: <TrendingDown size={16} />, suffix: totalRemain < 0 ? ' (초과)' : '' },
+          ].map(({ label, value, color, iconBg, icon, prefix = '', suffix = '' }) => (
             <div key={label} className="p-4 md:p-5 flex flex-col gap-1.5">
               <div className="flex items-center gap-1.5">
                 <div className={`p-1 rounded-md ${iconBg}`}>{icon}</div>
                 <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wide">{label}</p>
               </div>
-              <p className={`text-base md:text-xl font-bold break-all ${color}`}>
-                {prefix}₩{fmt(value)}{suffix}
-              </p>
+              <p className={`text-base md:text-xl font-bold break-all ${color}`}>{prefix}₩{fmt(value)}{suffix}</p>
             </div>
           ))}
         </div>
@@ -124,21 +121,24 @@ const CampTab = ({
                 return (
                   <tr key={cat} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 md:px-6 py-3 border-r border-gray-100">
-                      <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${c.bg} ${c.text}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${c.accent}`} />
-                        {cat}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${c.bg} ${c.text}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${c.accent}`} />{cat}
+                        </span>
+                        {cat === '행사비' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-indigo-500 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded-full">
+                            <Link size={9} />정산현황 연동
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 md:px-6 py-3 text-right border-r border-gray-100">
                       {isEditingBudget && isAdmin ? (
                         <div className="flex justify-end items-center gap-1">
                           <span className="text-gray-400 text-xs">₩</span>
-                          <input
-                            type="number"
-                            value={campBudget[cat] || 0}
+                          <input type="number" value={campBudget[cat] || 0}
                             onChange={(e) => setCampBudget((prev) => ({ ...prev, [cat]: Number(e.target.value) }))}
-                            className="w-28 p-1.5 border border-emerald-300 rounded text-right text-sm focus:ring-2 focus:ring-emerald-400 outline-none bg-emerald-50"
-                          />
+                            className="w-28 p-1.5 border border-emerald-300 rounded text-right text-sm focus:ring-2 focus:ring-emerald-400 outline-none bg-emerald-50" />
                         </div>
                       ) : (
                         <span className="font-medium text-gray-800">₩{fmt(bud)}</span>
@@ -168,79 +168,37 @@ const CampTab = ({
         </div>
       </div>
 
-      {/* ══════════════════════════════════
-           BLOCK 2 — 비용 현황
-         ══════════════════════════════════ */}
+      {/* ── BLOCK 2: 비용 현황 ── */}
       <div className="space-y-4">
 
-        {/* 입력 폼 (관리자 전용) */}
+        {/* 기부금 입력 폼 (관리자 전용) */}
         {isAdmin && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-4 md:p-5 border-b border-gray-100 bg-indigo-50/40 flex items-center gap-2">
               <PlusCircle size={18} className="text-indigo-500" />
-              <h2 className="font-bold text-gray-700 text-sm md:text-base">비용 입력</h2>
+              <h2 className="font-bold text-gray-700 text-sm md:text-base">기부금 입력</h2>
+              <span className="text-xs text-gray-400 ml-1">※ 행사비는 정산현황에서 자동 연동됩니다</span>
             </div>
-            <form onSubmit={handleAddCost} className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-5 gap-3">
-              {/* 날짜 */}
-              <div className="flex flex-col gap-1 col-span-1">
+            <form onSubmit={handleAddCost} className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold text-gray-500">날짜</label>
-                <input
-                  type="date"
-                  name="date"
-                  value={form.date}
-                  onChange={handleFormChange}
-                  required
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
-                />
+                <input type="date" name="date" value={form.date} onChange={handleFormChange} required
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition" />
               </div>
-              {/* 항목 */}
-              <div className="flex flex-col gap-1 col-span-1">
-                <label className="text-xs font-semibold text-gray-500">항목</label>
-                <select
-                  name="category"
-                  value={form.category}
-                  onChange={handleFormChange}
-                  required
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition bg-white"
-                >
-                  <option value="">선택</option>
-                  {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
-              </div>
-              {/* 내용 */}
-              <div className="flex flex-col gap-1 col-span-2 md:col-span-1">
+              <div className="flex flex-col gap-1 col-span-1 md:col-span-1">
                 <label className="text-xs font-semibold text-gray-500">내용</label>
-                <input
-                  type="text"
-                  name="description"
-                  value={form.description}
-                  onChange={handleFormChange}
-                  placeholder="내용 입력"
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
-                />
+                <input type="text" name="description" value={form.description} onChange={handleFormChange} placeholder="내용 입력"
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition" />
               </div>
-              {/* 금액 */}
-              <div className="flex flex-col gap-1 col-span-1">
+              <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold text-gray-500">금액 (원)</label>
-                <input
-                  type="number"
-                  name="amount"
-                  value={form.amount}
-                  onChange={handleFormChange}
-                  placeholder="예: 50000"
-                  min="1"
-                  required
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
-                />
+                <input type="number" name="amount" value={form.amount} onChange={handleFormChange} placeholder="예: 50000" min="1" required
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition" />
               </div>
-              {/* 추가 버튼 */}
-              <div className="flex items-end col-span-1">
-                <button
-                  type="submit"
-                  className="w-full flex items-center justify-center gap-1.5 px-5 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-all shadow-sm text-sm"
-                >
-                  <PlusCircle size={16} />
-                  추가
+              <div className="flex items-end">
+                <button type="submit"
+                  className="w-full flex items-center justify-center gap-1.5 px-5 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-all shadow-sm text-sm">
+                  <PlusCircle size={16} />추가
                 </button>
               </div>
             </form>
@@ -256,34 +214,34 @@ const CampTab = ({
 
           {/* Mobile */}
           <div className="block md:hidden divide-y divide-gray-100">
-            {sortedCosts.map((cost) => {
-              const c = CAT_COLORS[cost.category] || { bg: 'bg-gray-100', text: 'text-gray-600' };
+            {mergedList.map((row) => {
+              const c = CAT_COLORS[row.category] || { bg: 'bg-gray-100', text: 'text-gray-600' };
+              const isSettlement = row._source === 'settlement';
               return (
-                <div key={cost.id} className="p-4 hover:bg-gray-50 transition-colors flex justify-between items-center gap-3">
+                <div key={`${row._source}-${row.id}`} className={`p-4 flex justify-between items-center gap-3 ${isSettlement ? 'bg-indigo-50/30' : 'hover:bg-gray-50'} transition-colors`}>
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="p-2 bg-indigo-50 rounded-lg flex-shrink-0">
+                    <div className={`p-2 rounded-lg flex-shrink-0 ${isSettlement ? 'bg-indigo-100' : 'bg-indigo-50'}`}>
                       <Calendar size={14} className="text-indigo-500" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs text-gray-400 font-medium">{cost.date}</p>
+                      <p className="text-xs text-gray-400 font-medium">{row.date}</p>
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="text-sm font-bold text-indigo-700">₩{fmt(cost.amount)}</p>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${c.bg} ${c.text}`}>{cost.category}</span>
+                        <p className="text-sm font-bold text-indigo-700">₩{fmt(row.amount)}</p>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${c.bg} ${c.text}`}>{row.category}</span>
+                        {isSettlement && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-600">정산현황</span>}
                       </div>
-                      {cost.description && (
-                        <p className="text-xs text-gray-500 mt-0.5 truncate">{cost.description}</p>
-                      )}
+                      {row.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{row.description}</p>}
                     </div>
                   </div>
-                  {isAdmin && (
-                    deleteConfirmId === cost.id ? (
+                  {isAdmin && !isSettlement && (
+                    deleteConfirmId === row.id ? (
                       <div className="flex items-center gap-1 text-[10px] flex-shrink-0">
                         <span className="text-red-500 font-bold mr-1">삭제?</span>
-                        <button onClick={() => { onDeleteCampCost(cost.id); setDeleteConfirmId(null); }} className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs">예</button>
+                        <button onClick={() => { onDeleteCampCost(row.id); setDeleteConfirmId(null); }} className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs">예</button>
                         <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">아니오</button>
                       </div>
                     ) : (
-                      <button onClick={() => setDeleteConfirmId(cost.id)} className="p-1.5 text-gray-400 hover:text-red-600 bg-gray-50 rounded flex-shrink-0">
+                      <button onClick={() => setDeleteConfirmId(row.id)} className="p-1.5 text-gray-400 hover:text-red-600 bg-gray-50 rounded flex-shrink-0">
                         <Trash2 size={14} />
                       </button>
                     )
@@ -291,7 +249,7 @@ const CampTab = ({
                 </div>
               );
             })}
-            {sortedCosts.length === 0 && (
+            {mergedList.length === 0 && (
               <div className="p-8 text-center text-gray-400 text-sm">비용 내역이 없습니다.</div>
             )}
           </div>
@@ -304,39 +262,50 @@ const CampTab = ({
                   <th className="px-6 py-4 font-semibold">날짜</th>
                   <th className="px-6 py-4 font-semibold">항목</th>
                   <th className="px-6 py-4 font-semibold">내용</th>
+                  <th className="px-6 py-4 font-semibold">출처</th>
                   <th className="px-6 py-4 font-semibold text-right">금액</th>
                   {isAdmin && <th className="px-6 py-4 font-semibold text-center">관리</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {sortedCosts.map((cost) => {
-                  const c = CAT_COLORS[cost.category] || { bg: 'bg-gray-100', text: 'text-gray-600' };
+                {mergedList.map((row) => {
+                  const c = CAT_COLORS[row.category] || { bg: 'bg-gray-100', text: 'text-gray-600' };
+                  const isSettlement = row._source === 'settlement';
                   return (
-                    <tr key={cost.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={`${row._source}-${row.id}`} className={`${isSettlement ? 'bg-indigo-50/20' : 'hover:bg-gray-50'} transition-colors`}>
                       <td className="px-6 py-4 font-medium text-gray-700">
                         <div className="flex items-center gap-2">
-                          <Calendar size={14} className="text-indigo-400" />
-                          {cost.date}
+                          <Calendar size={14} className="text-indigo-400" />{row.date}
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${c.bg} ${c.text}`}>
-                          <Tag size={10} />
-                          {cost.category}
+                          <Tag size={10} />{row.category}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-gray-600">{cost.description || '-'}</td>
-                      <td className="px-6 py-4 text-right font-bold text-indigo-600">₩{fmt(cost.amount)}</td>
+                      <td className="px-6 py-4 text-gray-600">{row.description || '-'}</td>
+                      <td className="px-6 py-4">
+                        {isSettlement ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-600">
+                            <Link size={10} />정산현황
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">직접입력</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right font-bold text-indigo-600">₩{fmt(row.amount)}</td>
                       {isAdmin && (
                         <td className="px-6 py-4 text-center">
-                          {deleteConfirmId === cost.id ? (
+                          {isSettlement ? (
+                            <span className="text-xs text-gray-300">-</span>
+                          ) : deleteConfirmId === row.id ? (
                             <div className="flex items-center justify-center gap-1 text-xs">
                               <span className="text-red-500 font-bold mr-1">삭제?</span>
-                              <button onClick={() => { onDeleteCampCost(cost.id); setDeleteConfirmId(null); }} className="px-2 py-1 bg-red-100 text-red-600 rounded">예</button>
+                              <button onClick={() => { onDeleteCampCost(row.id); setDeleteConfirmId(null); }} className="px-2 py-1 bg-red-100 text-red-600 rounded">예</button>
                               <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-1 bg-gray-100 text-gray-600 rounded">아니오</button>
                             </div>
                           ) : (
-                            <button onClick={() => setDeleteConfirmId(cost.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
+                            <button onClick={() => setDeleteConfirmId(row.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
                               <Trash2 size={16} />
                             </button>
                           )}
@@ -345,19 +314,17 @@ const CampTab = ({
                     </tr>
                   );
                 })}
-                {sortedCosts.length === 0 && (
+                {mergedList.length === 0 && (
                   <tr>
-                    <td colSpan={isAdmin ? 5 : 4} className="px-6 py-12 text-center text-gray-400">
-                      비용 내역이 없습니다.
-                    </td>
+                    <td colSpan={isAdmin ? 6 : 5} className="px-6 py-12 text-center text-gray-400">비용 내역이 없습니다.</td>
                   </tr>
                 )}
               </tbody>
-              {sortedCosts.length > 0 && (
+              {mergedList.length > 0 && (
                 <tfoot className="border-t-2 border-gray-200 bg-gray-50/50">
                   <tr>
                     <td className="px-6 py-3 font-bold text-gray-600">합계</td>
-                    <td /><td />
+                    <td /><td /><td />
                     <td className="px-6 py-3 text-right font-bold text-indigo-700">₩{fmt(totalSpent)}</td>
                     {isAdmin && <td />}
                   </tr>

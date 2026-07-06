@@ -382,6 +382,7 @@ const App = () => {
               campBudget={campBudget}
               setCampBudget={setCampBudget}
               campCosts={campCosts}
+              settlementItems={items}
               isAdmin={isAdmin}
               onSaveCampBudget={handleSaveCampBudget}
               onAddCampCost={handleAddCampCost}
