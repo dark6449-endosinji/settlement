@@ -1,51 +1,47 @@
 import React, { useState, useMemo } from 'react';
-import { Wallet, Trash2, Calendar, Tag, Pencil, Save, LayoutGrid, TrendingDown, TrendingUp, Link, AlertTriangle } from 'lucide-react';
-
-const CAT_COLORS = {
-  행사비: { bg: 'bg-rose-100',    text: 'text-rose-700',    accent: 'bg-rose-500'    },
-  기부금: { bg: 'bg-emerald-100', text: 'text-emerald-700', accent: 'bg-emerald-500' },
-};
+import { Wallet, Trash2, Calendar, Tag, Pencil, Save, LayoutGrid, TrendingDown, TrendingUp, Link, AlertTriangle, PlusCircle, User } from 'lucide-react';
 
 const fmt = (n) => (isNaN(Number(n)) ? '0' : Number(n).toLocaleString());
 
 const CampTab = ({
   campBudget, setCampBudget,
-  campCosts, settlementItems,
+  campCosts, campDonations,
+  settlementItems,
   isAdmin,
   onSaveCampBudget, onAddCampCost, onDeleteCampCost,
+  onAddCampDonation, onDeleteCampDonation,
 }) => {
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [donationForm, setDonationForm] = useState({ date: '', donor: '', amount: '', note: '' });
 
-  // 정산현황에서 행사비만 필터
+  // 정산현황 행사비 항목
   const settlementEventCosts = useMemo(
     () => (settlementItems || []).filter((i) => i.brief === '행사비'),
     [settlementItems]
   );
 
-  // 기부금 campCost 잘못 입력된 항목 (경고용)
-  const wrongCampCosts = useMemo(
-    () => campCosts.filter((c) => c.category === '기부금'),
-    [campCosts]
+  // 잘못 입력된 기부금 campCost 항목
+  const wrongCampCosts = useMemo(() => campCosts.filter((c) => c.category === '기부금'), [campCosts]);
+
+  // 기부금 총액 = campDonations 합산
+  const totalDonation = useMemo(() => (campDonations || []).reduce((a, d) => a + d.amount, 0), [campDonations]);
+
+  // 행사비 사용액
+  const eventSpent = useMemo(() =>
+    settlementEventCosts.reduce((a, i) => a + i.amount, 0)
+    + campCosts.filter((c) => c.category === '행사비').reduce((a, c) => a + c.amount, 0),
+    [settlementEventCosts, campCosts]
   );
 
-  // 행사비 사용액 = 정산현황 행사비 + campCosts 행사비 합산
-  // 기부금은 예산(수입)이므로 사용액 없음
-  const spent = useMemo(() => ({
-    행사비: settlementEventCosts.reduce((a, i) => a + i.amount, 0)
-           + campCosts.filter((c) => c.category === '행사비').reduce((a, c) => a + c.amount, 0),
-    기부금: 0,
-  }), [settlementEventCosts, campCosts]);
+  const eventBudget = campBudget['행사비'] || 0;
+  const totalBudget = eventBudget + totalDonation;
+  const totalRemain = totalBudget - eventSpent;
 
-  const totalBudget = useMemo(() => ['행사비', '기부금'].reduce((a, k) => a + (campBudget[k] || 0), 0), [campBudget]);
-  const totalSpent  = spent.행사비;
-  const totalRemain = totalBudget - totalSpent;
-
-  // 비용 현황 목록: 행사비만 (정산현황 + campCosts 행사비), 날짜 내림차순
+  // 비용 현황 목록 (행사비만)
   const mergedList = useMemo(() => {
     const fromSettlement = settlementEventCosts.map((i) => ({
-      id: i.id, date: i.date, category: '행사비',
-      description: i.content || i.description || '',
+      id: i.id, date: i.date, description: i.content || i.description || '',
       amount: i.amount, _source: 'settlement',
     }));
     const fromCamp = campCosts
@@ -54,10 +50,23 @@ const CampTab = ({
     return [...fromSettlement, ...fromCamp].sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [settlementEventCosts, campCosts]);
 
+  const sortedDonations = useMemo(
+    () => [...(campDonations || [])].sort((a, b) => new Date(b.date) - new Date(a.date)),
+    [campDonations]
+  );
+
+  const handleDonationChange = (e) => setDonationForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleAddDonation = (e) => {
+    e.preventDefault();
+    if (!donationForm.date || !donationForm.amount) return;
+    onAddCampDonation({ ...donationForm, amount: Number(donationForm.amount) });
+    setDonationForm({ date: '', donor: '', amount: '', note: '' });
+  };
+
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in duration-300">
 
-      {/* ── BLOCK 1: 예산 현황 ── */}
+      {/* ══ BLOCK 1: 예산 현황 ══ */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-4 md:p-5 border-b border-gray-100 bg-emerald-50/40 flex justify-between items-center">
           <h2 className="font-bold text-gray-700 flex items-center gap-2 text-sm md:text-base">
@@ -73,7 +82,7 @@ const CampTab = ({
             ) : (
               <button onClick={() => setIsEditingBudget(true)}
                 className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm font-bold rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
-                <Pencil size={16} /> 예산 설정
+                <Pencil size={16} /> 행사비 예산 설정
               </button>
             )
           )}
@@ -82,9 +91,9 @@ const CampTab = ({
         {/* 요약 카드 */}
         <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
           {[
-            { label: '총 예산', value: totalBudget, color: 'text-gray-800', iconBg: 'bg-emerald-100 text-emerald-600', icon: <Wallet size={16} />, prefix: '' },
-            { label: '총 사용액', value: totalSpent,  color: 'text-rose-600',  iconBg: 'bg-rose-100 text-rose-500',    icon: <TrendingUp size={16} />,  prefix: '- ' },
-            { label: '잔여 예산', value: Math.abs(totalRemain), color: totalRemain >= 0 ? 'text-emerald-700' : 'text-red-600', iconBg: totalRemain >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-500', icon: <TrendingDown size={16} />, suffix: totalRemain < 0 ? ' (초과)' : '' },
+            { label: '총 예산', value: totalBudget, color: 'text-gray-800', iconBg: 'bg-emerald-100 text-emerald-600', icon: <Wallet size={16} /> },
+            { label: '행사비 사용액', value: eventSpent, color: 'text-rose-600', iconBg: 'bg-rose-100 text-rose-500', icon: <TrendingUp size={16} />, prefix: '- ' },
+            { label: '잔여', value: Math.abs(totalRemain), color: totalRemain >= 0 ? 'text-emerald-700' : 'text-red-600', iconBg: totalRemain >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-500', icon: <TrendingDown size={16} />, suffix: totalRemain < 0 ? ' (초과)' : '' },
           ].map(({ label, value, color, iconBg, icon, prefix = '', suffix = '' }) => (
             <div key={label} className="p-4 md:p-5 flex flex-col gap-1.5">
               <div className="flex items-center gap-1.5">
@@ -96,86 +105,129 @@ const CampTab = ({
           ))}
         </div>
 
-        {/* 항목별 테이블 */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm whitespace-nowrap">
-            <thead className="bg-gray-50 border-b border-gray-200 text-gray-500">
-              <tr>
-                <th className="px-4 md:px-6 py-3 font-bold text-left border-r border-gray-200">항목</th>
-                <th className="px-4 md:px-6 py-3 font-bold text-right border-r border-gray-200">예산액</th>
-                <th className="px-4 md:px-6 py-3 font-bold text-right border-r border-gray-200">사용액</th>
-                <th className="px-4 md:px-6 py-3 font-bold text-right">잔여</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {['행사비', '기부금'].map((cat) => {
-                const bud = campBudget[cat] || 0;
-                const use = spent[cat] || 0;
-                const rem = bud - use;
-                const c = CAT_COLORS[cat];
-                return (
-                  <tr key={cat} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 md:px-6 py-3 border-r border-gray-100">
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${c.bg} ${c.text}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${c.accent}`} />{cat}
-                        </span>
-                        {cat === '행사비' && (
-                          <span className="hidden md:inline-flex items-center gap-1 text-[10px] text-indigo-500 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded-full">
-                            <Link size={9} />정산현황 연동
-                          </span>
-                        )}
-                        {cat === '기부금' && (
-                          <span className="hidden md:inline text-[10px] text-gray-400">※ 수입 항목 (예산 설정으로 입력)</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 md:px-6 py-3 text-right border-r border-gray-100">
-                      {isEditingBudget && isAdmin ? (
-                        <div className="flex justify-end items-center gap-1">
-                          <span className="text-gray-400 text-xs">₩</span>
-                          <input type="number" value={campBudget[cat] || 0}
-                            onChange={(e) => setCampBudget((prev) => ({ ...prev, [cat]: Number(e.target.value) }))}
-                            className="w-28 p-1.5 border border-emerald-300 rounded text-right text-sm focus:ring-2 focus:ring-emerald-400 outline-none bg-emerald-50" />
-                        </div>
-                      ) : (
-                        <span className="font-medium text-gray-800">₩{fmt(bud)}</span>
-                      )}
-                    </td>
-                    <td className="px-4 md:px-6 py-3 text-right font-medium border-r border-gray-100">
-                      {cat === '기부금'
-                        ? <span className="text-gray-400 text-xs">해당없음</span>
-                        : <span className="text-rose-600">{use > 0 ? `- ₩${fmt(use)}` : '₩0'}</span>
-                      }
-                    </td>
-                    <td className={`px-4 md:px-6 py-3 text-right font-bold ${cat === '기부금' ? 'text-gray-400' : rem >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                      {cat === '기부금' ? '-' : <>₩{fmt(Math.abs(rem))}{rem < 0 && <span className="text-xs font-medium ml-1">(초과)</span>}</>}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot className="bg-yellow-50/60 border-t-2 border-gray-200">
-              <tr>
-                <td className="px-4 md:px-6 py-3 font-bold text-gray-700 border-r border-gray-200">합 계</td>
-                <td className="px-4 md:px-6 py-3 text-right font-bold text-gray-800 border-r border-gray-200">₩{fmt(totalBudget)}</td>
-                <td className="px-4 md:px-6 py-3 text-right font-bold text-rose-600 border-r border-gray-200">- ₩{fmt(totalSpent)}</td>
-                <td className={`px-4 md:px-6 py-3 text-right font-bold ${totalRemain >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                  ₩{fmt(Math.abs(totalRemain))}{totalRemain < 0 && <span className="text-xs ml-1">(초과)</span>}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+        {/* 행사비 예산 설정 행 */}
+        <div className="px-4 md:px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 bg-gray-50/40">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />행사비
+            </span>
+            <span className="hidden md:inline-flex items-center gap-1 text-[10px] text-indigo-500 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded-full">
+              <Link size={9} />정산현황 연동
+            </span>
+          </div>
+          <div className="flex items-center gap-4 text-sm">
+            <div className="text-right">
+              <p className="text-[10px] text-gray-400 font-bold uppercase">예산액</p>
+              {isEditingBudget && isAdmin ? (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="text-gray-400 text-xs">₩</span>
+                  <input type="number" value={campBudget['행사비'] || 0}
+                    onChange={(e) => setCampBudget((prev) => ({ ...prev, 행사비: Number(e.target.value) }))}
+                    className="w-28 p-1 border border-emerald-300 rounded text-right text-sm focus:ring-2 focus:ring-emerald-400 outline-none bg-emerald-50" />
+                </div>
+              ) : (
+                <p className="font-bold text-gray-800">₩{fmt(eventBudget)}</p>
+              )}
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-gray-400 font-bold uppercase">사용액</p>
+              <p className="font-bold text-rose-600">- ₩{fmt(eventSpent)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-gray-400 font-bold uppercase">잔여</p>
+              <p className={`font-bold ${eventBudget - eventSpent >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                ₩{fmt(Math.abs(eventBudget - eventSpent))}{eventBudget - eventSpent < 0 && <span className="text-xs ml-1">(초과)</span>}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 기부금 섹션 */}
+        <div className="border-b border-gray-100">
+          <div className="px-4 md:px-6 py-3 flex items-center justify-between bg-emerald-50/30">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />기부금
+              </span>
+              <span className="text-xs text-gray-400">총 ₩{fmt(totalDonation)} / {sortedDonations.length}건</span>
+            </div>
+          </div>
+
+          {/* 기부금 입력 폼 (관리자) */}
+          {isAdmin && (
+            <form onSubmit={handleAddDonation} className="px-4 md:px-6 py-4 grid grid-cols-2 md:grid-cols-5 gap-3 border-t border-emerald-100 bg-emerald-50/20">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-gray-500">날짜</label>
+                <input type="date" name="date" value={donationForm.date} onChange={handleDonationChange} required
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 transition" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-gray-500">기부자</label>
+                <input type="text" name="donor" value={donationForm.donor} onChange={handleDonationChange} placeholder="이름"
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 transition" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-gray-500">금액 (원)</label>
+                <input type="number" name="amount" value={donationForm.amount} onChange={handleDonationChange} placeholder="예: 100000" min="1" required
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 transition" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-gray-500">메모</label>
+                <input type="text" name="note" value={donationForm.note} onChange={handleDonationChange} placeholder="비고"
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 transition" />
+              </div>
+              <div className="flex items-end">
+                <button type="submit"
+                  className="w-full flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-all shadow-sm text-sm">
+                  <PlusCircle size={15} />추가
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* 기부금 목록 */}
+          <div className="divide-y divide-gray-100">
+            {sortedDonations.map((d) => (
+              <div key={d.id} className="px-4 md:px-6 py-3 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-3 min-w-0 text-sm">
+                  <div className="p-1.5 bg-emerald-50 rounded-lg flex-shrink-0">
+                    <User size={13} className="text-emerald-500" />
+                  </div>
+                  <div className="flex items-center gap-3 flex-wrap min-w-0">
+                    <span className="text-gray-400 text-xs font-medium flex-shrink-0">{d.date}</span>
+                    <span className="font-bold text-emerald-700">₩{fmt(d.amount)}</span>
+                    {d.donor && <span className="font-semibold text-gray-700">{d.donor}</span>}
+                    {d.note && <span className="text-gray-400 text-xs truncate">{d.note}</span>}
+                  </div>
+                </div>
+                {isAdmin && (
+                  deleteConfirmId === d.id ? (
+                    <div className="flex items-center gap-1 text-xs flex-shrink-0">
+                      <span className="text-red-500 font-bold">삭제?</span>
+                      <button onClick={() => { onDeleteCampDonation(d.id); setDeleteConfirmId(null); }} className="px-2 py-1 bg-red-100 text-red-600 rounded ml-1">예</button>
+                      <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-1 bg-gray-100 text-gray-600 rounded">아니오</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setDeleteConfirmId(d.id)} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded flex-shrink-0">
+                      <Trash2 size={14} />
+                    </button>
+                  )
+                )}
+              </div>
+            ))}
+            {sortedDonations.length === 0 && (
+              <div className="px-6 py-5 text-center text-gray-400 text-sm">기부금 내역이 없습니다.</div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* ── 잘못 입력된 기부금 cost 항목 경고 (관리자만) ── */}
+      {/* 잘못 입력된 기부금 cost 경고 */}
       {isAdmin && wrongCampCosts.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl overflow-hidden">
           <div className="p-4 flex items-center gap-2 border-b border-amber-200">
             <AlertTriangle size={16} className="text-amber-500" />
             <p className="text-sm font-bold text-amber-700">잘못 입력된 기부금 항목 — 삭제해 주세요</p>
-            <span className="text-xs text-amber-500">(기부금은 예산 설정에서 입력합니다)</span>
           </div>
           <div className="divide-y divide-amber-100">
             {wrongCampCosts.map((row) => (
@@ -203,7 +255,7 @@ const CampTab = ({
         </div>
       )}
 
-      {/* ── BLOCK 2: 비용 현황 (행사비만) ── */}
+      {/* ══ BLOCK 2: 비용 현황 (행사비만) ══ */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-4 md:p-5 border-b border-gray-100 bg-gray-50/30 flex items-center gap-2">
           <LayoutGrid size={18} className="text-indigo-500" />
@@ -246,12 +298,10 @@ const CampTab = ({
               </div>
             );
           })}
-          {mergedList.length === 0 && (
-            <div className="p-8 text-center text-gray-400 text-sm">행사비 내역이 없습니다.</div>
-          )}
+          {mergedList.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">행사비 내역이 없습니다.</div>}
         </div>
 
-        {/* Desktop Table */}
+        {/* Desktop */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 text-gray-500 border-b border-gray-200">
@@ -314,7 +364,7 @@ const CampTab = ({
                 <tr>
                   <td className="px-6 py-3 font-bold text-gray-600">합계</td>
                   <td /><td /><td />
-                  <td className="px-6 py-3 text-right font-bold text-indigo-700">₩{fmt(totalSpent)}</td>
+                  <td className="px-6 py-3 text-right font-bold text-indigo-700">₩{fmt(eventSpent)}</td>
                   {isAdmin && <td />}
                 </tr>
               </tfoot>

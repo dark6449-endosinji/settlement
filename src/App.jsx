@@ -15,10 +15,8 @@ const App = () => {
   const [items, setItems] = useState([]);
   const [advances, setAdvances] = useState([]);
   const [campCosts, setCampCosts] = useState([]);
-  const [campBudget, setCampBudget] = useState({
-    행사비: 4000000,
-    기부금: 0
-  });
+  const [campDonations, setCampDonations] = useState([]);
+  const [campBudget, setCampBudget] = useState({ 행사비: 4000000 });
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -106,12 +104,19 @@ const App = () => {
       }
     }, (error) => console.error("Camp Budget Fetch Error:", error));
 
+    const campDonationsRef = collection(db, 'artifacts', appId, 'public', 'data', 'camp_donations');
+    const unsubscribeCampDonations = onSnapshot(campDonationsRef, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setCampDonations(data);
+    }, (error) => console.error("Camp Donations Fetch Error:", error));
+
     return () => {
       unsubscribeItems();
       unsubscribeAdvances();
       unsubscribeBudget();
       unsubscribeCampCosts();
       unsubscribeCampBudget();
+      unsubscribeCampDonations();
     };
   }, [user]);
 
@@ -301,6 +306,31 @@ const App = () => {
     }
   };
 
+  const handleAddCampDonation = async ({ date, donor, amount, note }) => {
+    if (!isAdmin) return;
+    const newId = Date.now().toString();
+    const data = { id: newId, date, donor: donor || '', amount: Number(amount), note: note || '', createdAt: new Date().toISOString() };
+    if (db) {
+      try {
+        const ref = doc(db, 'artifacts', appId, 'public', 'data', 'camp_donations', newId);
+        await setDoc(ref, data);
+      } catch (error) { console.error("Camp Donation save error:", error); }
+    } else {
+      setCampDonations(prev => [...prev, data]);
+    }
+  };
+
+  const handleDeleteCampDonation = async (id) => {
+    if (!isAdmin) return;
+    if (db) {
+      try {
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'camp_donations', id.toString()));
+      } catch (error) { console.error("Camp Donation delete error:", error); }
+    } else {
+      setCampDonations(prev => prev.filter(d => d.id !== id));
+    }
+  };
+
   const handleLogout = async () => {
     if (auth) {
       await signOut(auth);
@@ -382,11 +412,14 @@ const App = () => {
               campBudget={campBudget}
               setCampBudget={setCampBudget}
               campCosts={campCosts}
+              campDonations={campDonations}
               settlementItems={items}
               isAdmin={isAdmin}
               onSaveCampBudget={handleSaveCampBudget}
               onAddCampCost={handleAddCampCost}
               onDeleteCampCost={handleDeleteCampCost}
+              onAddCampDonation={handleAddCampDonation}
+              onDeleteCampDonation={handleDeleteCampDonation}
             />
           )}
         </main>
