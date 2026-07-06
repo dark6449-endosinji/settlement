@@ -1,11 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Wallet, PlusCircle, Trash2, Calendar, Tag, Pencil, Save, LayoutGrid, TrendingDown, TrendingUp, Link } from 'lucide-react';
-
-const CATEGORIES = ['행사비', '기부금'];
+import { Wallet, Trash2, Calendar, Tag, Pencil, Save, LayoutGrid, TrendingDown, TrendingUp, Link, AlertTriangle } from 'lucide-react';
 
 const CAT_COLORS = {
-  행사비: { bg: 'bg-rose-100',    text: 'text-rose-700',    border: 'border-rose-200',    accent: 'bg-rose-500'    },
-  기부금: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', accent: 'bg-emerald-500' },
+  행사비: { bg: 'bg-rose-100',    text: 'text-rose-700',    accent: 'bg-rose-500'    },
+  기부금: { bg: 'bg-emerald-100', text: 'text-emerald-700', accent: 'bg-emerald-500' },
 };
 
 const fmt = (n) => (isNaN(Number(n)) ? '0' : Number(n).toLocaleString());
@@ -17,48 +15,44 @@ const CampTab = ({
   onSaveCampBudget, onAddCampCost, onDeleteCampCost,
 }) => {
   const [isEditingBudget, setIsEditingBudget] = useState(false);
-  const [form, setForm] = useState({ date: '', category: '기부금', description: '', amount: '' });
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-  // 정산현황에서 행사비 항목만 필터
+  // 정산현황에서 행사비만 필터
   const settlementEventCosts = useMemo(
     () => (settlementItems || []).filter((i) => i.brief === '행사비'),
     [settlementItems]
   );
 
-  // 행사비 사용액 = 정산현황 행사비 + campCosts 행사비 합산 / 기부금 사용액 = campCosts 기부금 합산
+  // 기부금 campCost 잘못 입력된 항목 (경고용)
+  const wrongCampCosts = useMemo(
+    () => campCosts.filter((c) => c.category === '기부금'),
+    [campCosts]
+  );
+
+  // 행사비 사용액 = 정산현황 행사비 + campCosts 행사비 합산
+  // 기부금은 예산(수입)이므로 사용액 없음
   const spent = useMemo(() => ({
     행사비: settlementEventCosts.reduce((a, i) => a + i.amount, 0)
-          + campCosts.filter((c) => c.category === '행사비').reduce((a, c) => a + c.amount, 0),
-    기부금: campCosts.filter((c) => c.category === '기부금').reduce((a, c) => a + c.amount, 0),
+           + campCosts.filter((c) => c.category === '행사비').reduce((a, c) => a + c.amount, 0),
+    기부금: 0,
   }), [settlementEventCosts, campCosts]);
 
-  const totalBudget = useMemo(() => CATEGORIES.reduce((a, k) => a + (campBudget[k] || 0), 0), [campBudget]);
-  const totalSpent  = useMemo(() => spent.행사비 + spent.기부금, [spent]);
+  const totalBudget = useMemo(() => ['행사비', '기부금'].reduce((a, k) => a + (campBudget[k] || 0), 0), [campBudget]);
+  const totalSpent  = spent.행사비;
   const totalRemain = totalBudget - totalSpent;
 
-  // 비용 현황 목록: 정산현황 행사비 + campCosts(기부금), 날짜 내림차순
+  // 비용 현황 목록: 행사비만 (정산현황 + campCosts 행사비), 날짜 내림차순
   const mergedList = useMemo(() => {
     const fromSettlement = settlementEventCosts.map((i) => ({
-      id: i.id,
-      date: i.date,
-      category: '행사비',
-      description: i.description || i.content || '',
-      amount: i.amount,
-      _source: 'settlement',
+      id: i.id, date: i.date, category: '행사비',
+      description: i.content || i.description || '',
+      amount: i.amount, _source: 'settlement',
     }));
-    const fromCamp = campCosts.map((c) => ({ ...c, _source: 'camp' }));
+    const fromCamp = campCosts
+      .filter((c) => c.category === '행사비')
+      .map((c) => ({ ...c, _source: 'camp' }));
     return [...fromSettlement, ...fromCamp].sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [settlementEventCosts, campCosts]);
-
-  const handleFormChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-
-  const handleAddCost = (e) => {
-    e.preventDefault();
-    if (!form.date || !form.amount) return;
-    onAddCampCost({ ...form, category: '기부금', amount: Number(form.amount) });
-    setForm({ date: '', category: '기부금', description: '', amount: '' });
-  };
 
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in duration-300">
@@ -89,7 +83,7 @@ const CampTab = ({
         <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
           {[
             { label: '총 예산', value: totalBudget, color: 'text-gray-800', iconBg: 'bg-emerald-100 text-emerald-600', icon: <Wallet size={16} />, prefix: '' },
-            { label: '총 사용액', value: totalSpent, color: 'text-rose-600', iconBg: 'bg-rose-100 text-rose-500', icon: <TrendingUp size={16} />, prefix: '- ' },
+            { label: '총 사용액', value: totalSpent,  color: 'text-rose-600',  iconBg: 'bg-rose-100 text-rose-500',    icon: <TrendingUp size={16} />,  prefix: '- ' },
             { label: '잔여 예산', value: Math.abs(totalRemain), color: totalRemain >= 0 ? 'text-emerald-700' : 'text-red-600', iconBg: totalRemain >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-500', icon: <TrendingDown size={16} />, suffix: totalRemain < 0 ? ' (초과)' : '' },
           ].map(({ label, value, color, iconBg, icon, prefix = '', suffix = '' }) => (
             <div key={label} className="p-4 md:p-5 flex flex-col gap-1.5">
@@ -114,7 +108,7 @@ const CampTab = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {CATEGORIES.map((cat) => {
+              {['행사비', '기부금'].map((cat) => {
                 const bud = campBudget[cat] || 0;
                 const use = spent[cat] || 0;
                 const rem = bud - use;
@@ -127,9 +121,12 @@ const CampTab = ({
                           <span className={`w-1.5 h-1.5 rounded-full ${c.accent}`} />{cat}
                         </span>
                         {cat === '행사비' && (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-indigo-500 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded-full">
+                          <span className="hidden md:inline-flex items-center gap-1 text-[10px] text-indigo-500 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded-full">
                             <Link size={9} />정산현황 연동
                           </span>
+                        )}
+                        {cat === '기부금' && (
+                          <span className="hidden md:inline text-[10px] text-gray-400">※ 수입 항목 (예산 설정으로 입력)</span>
                         )}
                       </div>
                     </td>
@@ -145,11 +142,14 @@ const CampTab = ({
                         <span className="font-medium text-gray-800">₩{fmt(bud)}</span>
                       )}
                     </td>
-                    <td className="px-4 md:px-6 py-3 text-right font-medium text-rose-600 border-r border-gray-100">
-                      {use > 0 ? `- ₩${fmt(use)}` : '₩0'}
+                    <td className="px-4 md:px-6 py-3 text-right font-medium border-r border-gray-100">
+                      {cat === '기부금'
+                        ? <span className="text-gray-400 text-xs">해당없음</span>
+                        : <span className="text-rose-600">{use > 0 ? `- ₩${fmt(use)}` : '₩0'}</span>
+                      }
                     </td>
-                    <td className={`px-4 md:px-6 py-3 text-right font-bold ${rem >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                      ₩{fmt(Math.abs(rem))}{rem < 0 && <span className="text-xs font-medium ml-1">(초과)</span>}
+                    <td className={`px-4 md:px-6 py-3 text-right font-bold ${cat === '기부금' ? 'text-gray-400' : rem >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                      {cat === '기부금' ? '-' : <>₩{fmt(Math.abs(rem))}{rem < 0 && <span className="text-xs font-medium ml-1">(초과)</span>}</>}
                     </td>
                   </tr>
                 );
@@ -169,137 +169,126 @@ const CampTab = ({
         </div>
       </div>
 
-      {/* ── BLOCK 2: 비용 현황 ── */}
-      <div className="space-y-4">
-
-        {/* 기부금 입력 폼 (관리자 전용) */}
-        {isAdmin && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-4 md:p-5 border-b border-gray-100 bg-indigo-50/40 flex items-center gap-2">
-              <PlusCircle size={18} className="text-indigo-500" />
-              <h2 className="font-bold text-gray-700 text-sm md:text-base">기부금 입력</h2>
-              <span className="text-xs text-gray-400 ml-1">※ 행사비는 정산현황에서 자동 연동됩니다</span>
-            </div>
-            <form onSubmit={handleAddCost} className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-gray-500">날짜</label>
-                <input type="date" name="date" value={form.date} onChange={handleFormChange} required
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition" />
-              </div>
-              <div className="flex flex-col gap-1 col-span-1 md:col-span-1">
-                <label className="text-xs font-semibold text-gray-500">내용</label>
-                <input type="text" name="description" value={form.description} onChange={handleFormChange} placeholder="내용 입력"
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-gray-500">금액 (원)</label>
-                <input type="number" name="amount" value={form.amount} onChange={handleFormChange} placeholder="예: 50000" min="1" required
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition" />
-              </div>
-              <div className="flex items-end">
-                <button type="submit"
-                  className="w-full flex items-center justify-center gap-1.5 px-5 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-all shadow-sm text-sm">
-                  <PlusCircle size={16} />추가
-                </button>
-              </div>
-            </form>
+      {/* ── 잘못 입력된 기부금 cost 항목 경고 (관리자만) ── */}
+      {isAdmin && wrongCampCosts.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl overflow-hidden">
+          <div className="p-4 flex items-center gap-2 border-b border-amber-200">
+            <AlertTriangle size={16} className="text-amber-500" />
+            <p className="text-sm font-bold text-amber-700">잘못 입력된 기부금 항목 — 삭제해 주세요</p>
+            <span className="text-xs text-amber-500">(기부금은 예산 설정에서 입력합니다)</span>
           </div>
-        )}
-
-        {/* 비용 목록 */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 md:p-5 border-b border-gray-100 bg-gray-50/30 flex items-center gap-2">
-            <LayoutGrid size={18} className="text-indigo-500" />
-            <h2 className="font-bold text-gray-700 text-sm md:text-base">비용 현황</h2>
-          </div>
-
-          {/* Mobile */}
-          <div className="block md:hidden divide-y divide-gray-100">
-            {mergedList.map((row) => {
-              const c = CAT_COLORS[row.category] || { bg: 'bg-gray-100', text: 'text-gray-600' };
-              const isSettlement = row._source === 'settlement';
-              return (
-                <div key={`${row._source}-${row.id}`} className={`p-4 flex justify-between items-center gap-3 ${isSettlement ? 'bg-indigo-50/30' : 'hover:bg-gray-50'} transition-colors`}>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`p-2 rounded-lg flex-shrink-0 ${isSettlement ? 'bg-indigo-100' : 'bg-indigo-50'}`}>
-                      <Calendar size={14} className="text-indigo-500" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs text-gray-400 font-medium">{row.date}</p>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="text-sm font-bold text-indigo-700">₩{fmt(row.amount)}</p>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${c.bg} ${c.text}`}>{row.category}</span>
-                        {isSettlement && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-600">정산현황</span>}
-                      </div>
-                      {row.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{row.description}</p>}
-                    </div>
-                  </div>
-                  {isAdmin && !isSettlement && (
-                    deleteConfirmId === row.id ? (
-                      <div className="flex items-center gap-1 text-[10px] flex-shrink-0">
-                        <span className="text-red-500 font-bold mr-1">삭제?</span>
-                        <button onClick={() => { onDeleteCampCost(row.id); setDeleteConfirmId(null); }} className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs">예</button>
-                        <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">아니오</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setDeleteConfirmId(row.id)} className="p-1.5 text-gray-400 hover:text-red-600 bg-gray-50 rounded flex-shrink-0">
-                        <Trash2 size={14} />
-                      </button>
-                    )
-                  )}
+          <div className="divide-y divide-amber-100">
+            {wrongCampCosts.map((row) => (
+              <div key={row.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <Calendar size={13} className="text-amber-400" />
+                  <span className="text-gray-600 font-medium">{row.date}</span>
+                  <span className="text-gray-500">{row.description || '-'}</span>
+                  <span className="font-bold text-amber-700">₩{fmt(row.amount)}</span>
                 </div>
-              );
-            })}
-            {mergedList.length === 0 && (
-              <div className="p-8 text-center text-gray-400 text-sm">비용 내역이 없습니다.</div>
-            )}
+                {deleteConfirmId === row.id ? (
+                  <div className="flex items-center gap-1 text-xs">
+                    <span className="text-red-500 font-bold">삭제?</span>
+                    <button onClick={() => { onDeleteCampCost(row.id); setDeleteConfirmId(null); }} className="px-2 py-1 bg-red-100 text-red-600 rounded ml-1">예</button>
+                    <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-1 bg-gray-100 text-gray-600 rounded">아니오</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setDeleteConfirmId(row.id)} className="p-1.5 text-amber-400 hover:text-red-600 hover:bg-red-50 rounded">
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
+        </div>
+      )}
 
-          {/* Desktop Table */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-gray-500 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-4 font-semibold">날짜</th>
-                  <th className="px-6 py-4 font-semibold">항목</th>
-                  <th className="px-6 py-4 font-semibold">내용</th>
-                  <th className="px-6 py-4 font-semibold">출처</th>
-                  <th className="px-6 py-4 font-semibold text-right">금액</th>
-                  {isAdmin && <th className="px-6 py-4 font-semibold text-center">관리</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {mergedList.map((row) => {
-                  const c = CAT_COLORS[row.category] || { bg: 'bg-gray-100', text: 'text-gray-600' };
-                  const isSettlement = row._source === 'settlement';
-                  return (
-                    <tr key={`${row._source}-${row.id}`} className={`${isSettlement ? 'bg-indigo-50/20' : 'hover:bg-gray-50'} transition-colors`}>
-                      <td className="px-6 py-4 font-medium text-gray-700">
-                        <div className="flex items-center gap-2">
-                          <Calendar size={14} className="text-indigo-400" />{row.date}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${c.bg} ${c.text}`}>
-                          <Tag size={10} />{row.category}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-600">{row.description || '-'}</td>
-                      <td className="px-6 py-4">
-                        {isSettlement ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-600">
-                            <Link size={10} />정산현황
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">직접입력</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right font-bold text-indigo-600">₩{fmt(row.amount)}</td>
-                      {isAdmin && (
-                        <td className="px-6 py-4 text-center">
-                          {isSettlement ? (
-                            <span className="text-xs text-gray-300">-</span>
-                          ) : deleteConfirmId === row.id ? (
+      {/* ── BLOCK 2: 비용 현황 (행사비만) ── */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-4 md:p-5 border-b border-gray-100 bg-gray-50/30 flex items-center gap-2">
+          <LayoutGrid size={18} className="text-indigo-500" />
+          <h2 className="font-bold text-gray-700 text-sm md:text-base">비용 현황</h2>
+          <span className="text-xs text-gray-400 ml-1">※ 정산현황의 행사비 항목이 자동 반영됩니다</span>
+        </div>
+
+        {/* Mobile */}
+        <div className="block md:hidden divide-y divide-gray-100">
+          {mergedList.map((row) => {
+            const isSettlement = row._source === 'settlement';
+            return (
+              <div key={`${row._source}-${row.id}`} className={`p-4 flex justify-between items-center gap-3 ${isSettlement ? 'bg-indigo-50/20' : 'hover:bg-gray-50'} transition-colors`}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`p-2 rounded-lg flex-shrink-0 ${isSettlement ? 'bg-indigo-100' : 'bg-rose-50'}`}>
+                    <Calendar size={14} className={isSettlement ? 'text-indigo-500' : 'text-rose-400'} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-400 font-medium">{row.date}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-bold text-indigo-700">₩{fmt(row.amount)}</p>
+                      {isSettlement && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-600">정산현황</span>}
+                    </div>
+                    {row.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{row.description}</p>}
+                  </div>
+                </div>
+                {isAdmin && !isSettlement && (
+                  deleteConfirmId === row.id ? (
+                    <div className="flex items-center gap-1 text-[10px] flex-shrink-0">
+                      <span className="text-red-500 font-bold">삭제?</span>
+                      <button onClick={() => { onDeleteCampCost(row.id); setDeleteConfirmId(null); }} className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs ml-1">예</button>
+                      <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">아니오</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setDeleteConfirmId(row.id)} className="p-1.5 text-gray-400 hover:text-red-600 bg-gray-50 rounded flex-shrink-0">
+                      <Trash2 size={14} />
+                    </button>
+                  )
+                )}
+              </div>
+            );
+          })}
+          {mergedList.length === 0 && (
+            <div className="p-8 text-center text-gray-400 text-sm">행사비 내역이 없습니다.</div>
+          )}
+        </div>
+
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50 text-gray-500 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-4 font-semibold">날짜</th>
+                <th className="px-6 py-4 font-semibold">항목</th>
+                <th className="px-6 py-4 font-semibold">내용</th>
+                <th className="px-6 py-4 font-semibold">출처</th>
+                <th className="px-6 py-4 font-semibold text-right">금액</th>
+                {isAdmin && <th className="px-6 py-4 font-semibold text-center">관리</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {mergedList.map((row) => {
+                const isSettlement = row._source === 'settlement';
+                return (
+                  <tr key={`${row._source}-${row.id}`} className={`${isSettlement ? 'bg-indigo-50/20' : 'hover:bg-gray-50'} transition-colors`}>
+                    <td className="px-6 py-4 font-medium text-gray-700">
+                      <div className="flex items-center gap-2"><Calendar size={14} className="text-indigo-400" />{row.date}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-700">
+                        <Tag size={10} />행사비
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-gray-600">{row.description || '-'}</td>
+                    <td className="px-6 py-4">
+                      {isSettlement
+                        ? <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-600"><Link size={10} />정산현황</span>
+                        : <span className="text-xs text-gray-400">직접입력</span>
+                      }
+                    </td>
+                    <td className="px-6 py-4 text-right font-bold text-indigo-600">₩{fmt(row.amount)}</td>
+                    {isAdmin && (
+                      <td className="px-6 py-4 text-center">
+                        {isSettlement ? <span className="text-xs text-gray-300">-</span>
+                          : deleteConfirmId === row.id ? (
                             <div className="flex items-center justify-center gap-1 text-xs">
                               <span className="text-red-500 font-bold mr-1">삭제?</span>
                               <button onClick={() => { onDeleteCampCost(row.id); setDeleteConfirmId(null); }} className="px-2 py-1 bg-red-100 text-red-600 rounded">예</button>
@@ -309,30 +298,28 @@ const CampTab = ({
                             <button onClick={() => setDeleteConfirmId(row.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
                               <Trash2 size={16} />
                             </button>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-                {mergedList.length === 0 && (
-                  <tr>
-                    <td colSpan={isAdmin ? 6 : 5} className="px-6 py-12 text-center text-gray-400">비용 내역이 없습니다.</td>
+                          )
+                        }
+                      </td>
+                    )}
                   </tr>
-                )}
-              </tbody>
-              {mergedList.length > 0 && (
-                <tfoot className="border-t-2 border-gray-200 bg-gray-50/50">
-                  <tr>
-                    <td className="px-6 py-3 font-bold text-gray-600">합계</td>
-                    <td /><td /><td />
-                    <td className="px-6 py-3 text-right font-bold text-indigo-700">₩{fmt(totalSpent)}</td>
-                    {isAdmin && <td />}
-                  </tr>
-                </tfoot>
+                );
+              })}
+              {mergedList.length === 0 && (
+                <tr><td colSpan={isAdmin ? 6 : 5} className="px-6 py-12 text-center text-gray-400">행사비 내역이 없습니다.</td></tr>
               )}
-            </table>
-          </div>
+            </tbody>
+            {mergedList.length > 0 && (
+              <tfoot className="border-t-2 border-gray-200 bg-gray-50/50">
+                <tr>
+                  <td className="px-6 py-3 font-bold text-gray-600">합계</td>
+                  <td /><td /><td />
+                  <td className="px-6 py-3 text-right font-bold text-indigo-700">₩{fmt(totalSpent)}</td>
+                  {isAdmin && <td />}
+                </tr>
+              </tfoot>
+            )}
+          </table>
         </div>
       </div>
     </div>
