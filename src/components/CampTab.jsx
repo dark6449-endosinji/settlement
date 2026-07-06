@@ -35,7 +35,8 @@ const CampTab = ({
   );
 
   const eventBudget = campBudget['행사비'] || 0;
-  const totalBudget = eventBudget + totalDonation;
+  const membership = campBudget['회비'] || 0;
+  const totalBudget = eventBudget + membership + totalDonation;
   const totalRemain = totalBudget - eventSpent;
 
   // 비용 현황 목록 (행사비만)
@@ -138,6 +139,39 @@ const CampTab = ({
               <p className={`font-bold ${eventBudget - eventSpent >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                 ₩{fmt(Math.abs(eventBudget - eventSpent))}{eventBudget - eventSpent < 0 && <span className="text-xs ml-1">(초과)</span>}
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 회비 행 */}
+        <div className="px-4 md:px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />회비
+            </span>
+            <span className="hidden md:inline text-[10px] text-gray-400">※ 수입 항목 (예산 설정으로 입력)</span>
+          </div>
+          <div className="flex items-center gap-4 text-sm">
+            <div className="text-right">
+              <p className="text-[10px] text-gray-400 font-bold uppercase">예산액</p>
+              {isEditingBudget && isAdmin ? (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="text-gray-400 text-xs">₩</span>
+                  <input type="number" value={campBudget['회비'] || 0}
+                    onChange={(e) => setCampBudget((prev) => ({ ...prev, 회비: Number(e.target.value) }))}
+                    className="w-28 p-1 border border-emerald-300 rounded text-right text-sm focus:ring-2 focus:ring-emerald-400 outline-none bg-emerald-50" />
+                </div>
+              ) : (
+                <p className="font-bold text-gray-800">₩{fmt(membership)}</p>
+              )}
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-gray-400 font-bold uppercase">사용액</p>
+              <p className="text-gray-400 text-xs">해당없음</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-gray-400 font-bold uppercase">잔여</p>
+              <p className="text-gray-400 text-sm">-</p>
             </div>
           </div>
         </div>

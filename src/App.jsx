@@ -16,7 +16,7 @@ const App = () => {
   const [advances, setAdvances] = useState([]);
   const [campCosts, setCampCosts] = useState([]);
   const [campDonations, setCampDonations] = useState([]);
-  const [campBudget, setCampBudget] = useState({ 행사비: 4000000 });
+  const [campBudget, setCampBudget] = useState({ 행사비: 4000000, 회비: 0 });
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
