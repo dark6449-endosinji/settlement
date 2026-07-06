@@ -106,71 +106,72 @@ const CampTab = ({
           ))}
         </div>
 
-        {/* 행사비 예산 설정 행 */}
-        <div className="px-4 md:px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 bg-gray-50/40">
-          <div className="flex items-center gap-2">
+        {/* 행사비 예산 행 */}
+        <div className="px-4 md:px-6 py-4 border-b border-gray-100 bg-gray-50/40">
+          <div className="flex items-center gap-2 mb-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-700">
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />행사비
             </span>
-            <span className="hidden md:inline-flex items-center gap-1 text-[10px] text-indigo-500 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 text-[10px] text-indigo-500 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded-full">
               <Link size={9} />정산현황 연동
             </span>
           </div>
-          <div className="flex items-center gap-4 text-sm">
-            <div className="text-right">
-              <p className="text-[10px] text-gray-400 font-bold uppercase">예산액</p>
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <div className="bg-white rounded-xl p-3 border border-gray-100">
+              <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">예산액</p>
               {isEditingBudget && isAdmin ? (
-                <div className="flex items-center gap-1 mt-0.5">
+                <div className="flex items-center gap-0.5">
                   <span className="text-gray-400 text-xs">₩</span>
                   <input type="number" value={campBudget['행사비'] || 0}
                     onChange={(e) => setCampBudget((prev) => ({ ...prev, 행사비: Number(e.target.value) }))}
-                    className="w-28 p-1 border border-emerald-300 rounded text-right text-sm focus:ring-2 focus:ring-emerald-400 outline-none bg-emerald-50" />
+                    className="w-full p-1 border border-emerald-300 rounded text-right text-xs focus:ring-2 focus:ring-emerald-400 outline-none bg-emerald-50" />
                 </div>
               ) : (
-                <p className="font-bold text-gray-800">₩{fmt(eventBudget)}</p>
+                <p className="font-bold text-gray-800 text-sm break-all">₩{fmt(eventBudget)}</p>
               )}
             </div>
-            <div className="text-right">
-              <p className="text-[10px] text-gray-400 font-bold uppercase">사용액</p>
-              <p className="font-bold text-rose-600">- ₩{fmt(eventSpent)}</p>
+            <div className="bg-white rounded-xl p-3 border border-gray-100">
+              <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">사용액</p>
+              <p className="font-bold text-rose-600 text-sm break-all">- ₩{fmt(eventSpent)}</p>
             </div>
-            <div className="text-right">
-              <p className="text-[10px] text-gray-400 font-bold uppercase">잔여</p>
-              <p className={`font-bold ${eventBudget - eventSpent >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                ₩{fmt(Math.abs(eventBudget - eventSpent))}{eventBudget - eventSpent < 0 && <span className="text-xs ml-1">(초과)</span>}
+            <div className={`rounded-xl p-3 border ${eventBudget - eventSpent >= 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
+              <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">잔여</p>
+              <p className={`font-bold text-sm break-all ${eventBudget - eventSpent >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                ₩{fmt(Math.abs(eventBudget - eventSpent))}
+                {eventBudget - eventSpent < 0 && <span className="text-[10px] ml-0.5">(초과)</span>}
               </p>
             </div>
           </div>
         </div>
 
         {/* 회비 행 */}
-        <div className="px-4 md:px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+        <div className="px-4 md:px-6 py-4 border-b border-gray-100 bg-gray-50/20">
+          <div className="flex items-center gap-2 mb-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />회비
             </span>
-            <span className="hidden md:inline text-[10px] text-gray-400">※ 수입 항목 (예산 설정으로 입력)</span>
+            <span className="text-[10px] text-gray-400">※ 수입 항목</span>
           </div>
-          <div className="flex items-center gap-4 text-sm">
-            <div className="text-right">
-              <p className="text-[10px] text-gray-400 font-bold uppercase">예산액</p>
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <div className="bg-white rounded-xl p-3 border border-gray-100">
+              <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">예산액</p>
               {isEditingBudget && isAdmin ? (
-                <div className="flex items-center gap-1 mt-0.5">
+                <div className="flex items-center gap-0.5">
                   <span className="text-gray-400 text-xs">₩</span>
                   <input type="number" value={campBudget['회비'] || 0}
                     onChange={(e) => setCampBudget((prev) => ({ ...prev, 회비: Number(e.target.value) }))}
-                    className="w-28 p-1 border border-emerald-300 rounded text-right text-sm focus:ring-2 focus:ring-emerald-400 outline-none bg-emerald-50" />
+                    className="w-full p-1 border border-emerald-300 rounded text-right text-xs focus:ring-2 focus:ring-emerald-400 outline-none bg-emerald-50" />
                 </div>
               ) : (
-                <p className="font-bold text-gray-800">₩{fmt(membership)}</p>
+                <p className="font-bold text-gray-800 text-sm break-all">₩{fmt(membership)}</p>
               )}
             </div>
-            <div className="text-right">
-              <p className="text-[10px] text-gray-400 font-bold uppercase">사용액</p>
-              <p className="text-gray-400 text-xs">해당없음</p>
+            <div className="bg-white rounded-xl p-3 border border-gray-100">
+              <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">사용액</p>
+              <p className="text-gray-400 text-xs pt-1">해당없음</p>
             </div>
-            <div className="text-right">
-              <p className="text-[10px] text-gray-400 font-bold uppercase">잔여</p>
+            <div className="bg-white rounded-xl p-3 border border-gray-100">
+              <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">잔여</p>
               <p className="text-gray-400 text-sm">-</p>
             </div>
           </div>
