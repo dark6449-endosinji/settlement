@@ -93,7 +93,7 @@ const CampTab = ({
         <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
           {[
             { label: '총 예산', value: totalBudget, color: 'text-gray-800', iconBg: 'bg-emerald-100 text-emerald-600', icon: <Wallet size={16} /> },
-            { label: '행사비 사용액', value: eventSpent, color: 'text-rose-600', iconBg: 'bg-rose-100 text-rose-500', icon: <TrendingUp size={16} />, prefix: '- ' },
+            { label: '사용 현황', value: eventSpent, color: 'text-rose-600', iconBg: 'bg-rose-100 text-rose-500', icon: <TrendingUp size={16} />, prefix: '- ' },
             { label: '잔여', value: Math.abs(totalRemain), color: totalRemain >= 0 ? 'text-emerald-700' : 'text-red-600', iconBg: totalRemain >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-500', icon: <TrendingDown size={16} />, suffix: totalRemain < 0 ? ' (초과)' : '' },
           ].map(({ label, value, color, iconBg, icon, prefix = '', suffix = '' }) => (
             <div key={label} className="p-4 md:p-5 flex flex-col gap-1.5">
@@ -179,13 +179,15 @@ const CampTab = ({
 
         {/* 기부금 섹션 */}
         <div className="border-b border-gray-100">
-          <div className="px-4 md:px-6 py-3 flex items-center justify-between bg-emerald-50/30">
-            <div className="flex items-center gap-2">
+          {/* 기부금 헤더 — 총액 크게 */}
+          <div className="px-4 md:px-6 pt-4 pb-3 bg-emerald-50/30">
+            <div className="flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />기부금
               </span>
-              <span className="text-xs text-gray-400">총 ₩{fmt(totalDonation)} / {sortedDonations.length}건</span>
+              <span className="text-[10px] text-gray-400">{sortedDonations.length}건</span>
             </div>
+            <p className="text-2xl font-bold text-emerald-700 mt-1">₩{fmt(totalDonation)}</p>
           </div>
 
           {/* 기부금 입력 폼 (관리자) */}
@@ -303,33 +305,39 @@ const CampTab = ({
           {mergedList.map((row) => {
             const isSettlement = row._source === 'settlement';
             return (
-              <div key={`${row._source}-${row.id}`} className={`p-4 flex justify-between items-center gap-3 ${isSettlement ? 'bg-indigo-50/20' : 'hover:bg-gray-50'} transition-colors`}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`p-2 rounded-lg flex-shrink-0 ${isSettlement ? 'bg-indigo-100' : 'bg-rose-50'}`}>
-                    <Calendar size={14} className={isSettlement ? 'text-indigo-500' : 'text-rose-400'} />
+              <div key={`${row._source}-${row.id}`}
+                className={`px-4 py-3 flex items-center justify-between gap-2 ${
+                  isSettlement ? 'bg-indigo-50/20' : 'hover:bg-gray-50'
+                } transition-colors`}>
+                {/* 왼쪽: 날짜 + 내용 + 출처 */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] text-gray-400 font-medium">{row.date}</span>
+                    {isSettlement
+                      ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-500">정산현황</span>
+                      : <span className="text-[10px] text-gray-400">직접입력</span>
+                    }
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-gray-400 font-medium">{row.date}</p>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className="text-sm font-bold text-indigo-700">₩{fmt(row.amount)}</p>
-                      {isSettlement && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-600">정산현황</span>}
-                    </div>
-                    {row.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{row.description}</p>}
-                  </div>
+                  {row.description && (
+                    <p className="text-xs text-gray-600 mt-0.5 truncate">{row.description}</p>
+                  )}
                 </div>
-                {isAdmin && !isSettlement && (
-                  deleteConfirmId === row.id ? (
-                    <div className="flex items-center gap-1 text-[10px] flex-shrink-0">
-                      <span className="text-red-500 font-bold">삭제?</span>
-                      <button onClick={() => { onDeleteCampCost(row.id); setDeleteConfirmId(null); }} className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs ml-1">예</button>
-                      <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">아니오</button>
-                    </div>
-                  ) : (
-                    <button onClick={() => setDeleteConfirmId(row.id)} className="p-1.5 text-gray-400 hover:text-red-600 bg-gray-50 rounded flex-shrink-0">
-                      <Trash2 size={14} />
-                    </button>
-                  )
-                )}
+                {/* 오른쪽: 금액 + 삭제 */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="font-bold text-sm text-indigo-700">₩{fmt(row.amount)}</span>
+                  {isAdmin && !isSettlement && (
+                    deleteConfirmId === row.id ? (
+                      <div className="flex items-center gap-1 text-[10px]">
+                        <button onClick={() => { onDeleteCampCost(row.id); setDeleteConfirmId(null); }} className="px-1.5 py-1 bg-red-100 text-red-600 rounded text-xs">삭제</button>
+                        <button onClick={() => setDeleteConfirmId(null)} className="px-1.5 py-1 bg-gray-100 text-gray-500 rounded text-xs">취소</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setDeleteConfirmId(row.id)} className="p-1 text-gray-300 hover:text-red-500 rounded">
+                        <Trash2 size={13} />
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
             );
           })}
