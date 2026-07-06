@@ -26,9 +26,10 @@ const CampTab = ({
     [settlementItems]
   );
 
-  // 행사비 사용액 = 정산현황 행사비 합산 / 기부금 사용액 = campCosts 합산
+  // 행사비 사용액 = 정산현황 행사비 + campCosts 행사비 합산 / 기부금 사용액 = campCosts 기부금 합산
   const spent = useMemo(() => ({
-    행사비: settlementEventCosts.reduce((a, i) => a + i.amount, 0),
+    행사비: settlementEventCosts.reduce((a, i) => a + i.amount, 0)
+          + campCosts.filter((c) => c.category === '행사비').reduce((a, c) => a + c.amount, 0),
     기부금: campCosts.filter((c) => c.category === '기부금').reduce((a, c) => a + c.amount, 0),
   }), [settlementEventCosts, campCosts]);
 
