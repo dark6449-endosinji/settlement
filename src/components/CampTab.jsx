@@ -14,6 +14,7 @@ const CampTab = ({
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [donationForm, setDonationForm] = useState({ date: '', donor: '', amount: '', note: '' });
+  const [costForm, setCostForm] = useState({ date: '', description: '', amount: '' });
 
   // 정산현황 행사비 항목
   const settlementEventCosts = useMemo(
@@ -72,6 +73,14 @@ const CampTab = ({
     if (!donationForm.date || !donationForm.amount) return;
     onAddCampDonation({ ...donationForm, amount: Number(donationForm.amount) });
     setDonationForm({ date: '', donor: '', amount: '', note: '' });
+  };
+
+  const handleCostChange = (e) => setCostForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleAddCost = (e) => {
+    e.preventDefault();
+    if (!costForm.date || !costForm.amount) return;
+    onAddCampCost({ ...costForm, category: '행사비', amount: Number(costForm.amount) });
+    setCostForm({ date: '', description: '', amount: '' });
   };
 
   return (
@@ -333,6 +342,33 @@ const CampTab = ({
             비용 현황
           </h2>
         </div>
+
+        {/* 직접 입력 폼 (관리자) */}
+        {isAdmin && (
+          <form onSubmit={handleAddCost} className="px-4 md:px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-3 border-b border-gray-100 bg-gray-50/20">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-500">날짜</label>
+              <input type="date" name="date" value={costForm.date} onChange={handleCostChange} required
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-500">내용</label>
+              <input type="text" name="description" value={costForm.description} onChange={handleCostChange} placeholder="예: 물티슈, 지퍼백"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-500">금액 (원)</label>
+              <input type="number" name="amount" value={costForm.amount} onChange={handleCostChange} placeholder="예: 10000" min="1" required
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" />
+            </div>
+            <div className="flex items-end">
+              <button type="submit"
+                className="w-full flex items-center justify-center gap-1.5 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-all shadow-sm text-sm">
+                <PlusCircle size={15} />추가
+              </button>
+            </div>
+          </form>
+        )}
 
         {/* Mobile */}
         <div className="block md:hidden divide-y divide-gray-100">
