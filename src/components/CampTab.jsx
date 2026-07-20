@@ -27,6 +27,16 @@ const CampTab = ({
   // 기부금 총액 = campDonations 합산
   const totalDonation = useMemo(() => (campDonations || []).reduce((a, d) => a + d.amount, 0), [campDonations]);
 
+  // 기부금 중 비고에 "교사"/"학생"이 표기된 항목별 합계
+  const teacherDonation = useMemo(
+    () => (campDonations || []).filter((d) => (d.note || '').includes('교사')).reduce((a, d) => a + d.amount, 0),
+    [campDonations]
+  );
+  const studentDonation = useMemo(
+    () => (campDonations || []).filter((d) => (d.note || '').includes('학생')).reduce((a, d) => a + d.amount, 0),
+    [campDonations]
+  );
+
   // 행사비 사용액
   const eventSpent = useMemo(() =>
     settlementEventCosts.reduce((a, i) => a + i.amount, 0)
@@ -191,6 +201,16 @@ const CampTab = ({
               <div className="bg-white rounded-xl p-3 border border-gray-100">
                 <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">예산액</p>
                 <p className="font-bold text-gray-800 text-sm break-all">₩{fmt(totalDonation)}</p>
+                <div className="mt-2 pt-2 border-t border-gray-100 space-y-0.5">
+                  <div className="flex items-center justify-between text-[11px] text-gray-500">
+                    <span>· 교사</span>
+                    <span className="font-semibold text-gray-600">₩{fmt(teacherDonation)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-gray-500">
+                    <span>· 학생</span>
+                    <span className="font-semibold text-gray-600">₩{fmt(studentDonation)}</span>
+                  </div>
+                </div>
               </div>
               <div className="bg-white rounded-xl p-3 border border-gray-100">
                 <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">사용액</p>
