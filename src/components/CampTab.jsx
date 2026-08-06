@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Wallet, Trash2, Calendar, Tag, Pencil, Save, LayoutGrid, TrendingDown, TrendingUp, Link, PlusCircle, User } from 'lucide-react';
+import { Wallet, Trash2, Calendar, Tag, Pencil, Save, LayoutGrid, TrendingDown, TrendingUp, Link, PlusCircle, User, Download } from 'lucide-react';
+import { downloadCSV } from '../utils/csv';
 
 const fmt = (n) => (isNaN(Number(n)) ? '0' : Number(n).toLocaleString());
 
@@ -97,6 +98,27 @@ const CampTab = ({
     if (!costForm.date || !costForm.amount) return;
     onAddCampCost({ ...costForm, amount: Number(costForm.amount) });
     setCostForm({ date: '', category: costForm.category, description: '', amount: '' });
+  };
+
+  const handleExportDonationsCSV = () => {
+    const rows = sortedDonations.map((d) => ({
+      날짜: d.date,
+      기부자: d.donor || '',
+      금액: d.amount,
+      메모: d.note || '',
+    }));
+    downloadCSV(`기부금내역_${new Date().toISOString().slice(0, 10)}.csv`, rows);
+  };
+
+  const handleExportCostsCSV = () => {
+    const rows = mergedList.map((row) => ({
+      날짜: row.date,
+      항목: row.category,
+      내용: row.description || '',
+      출처: row._source === 'settlement' ? '정산현황' : '직접입력',
+      금액: row.amount,
+    }));
+    downloadCSV(`캠프비용현황_${new Date().toISOString().slice(0, 10)}.csv`, rows);
   };
 
   return (
@@ -219,11 +241,20 @@ const CampTab = ({
         <div className="border-b border-gray-100 bg-gray-50/10">
           {/* 기부금 요약 카드 (행사비/회비와 동일 포맷) */}
           <div className="px-4 md:px-6 py-4">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />기부금
-              </span>
-              <span className="text-[10px] text-gray-400">※ 수입 항목 ({sortedDonations.length}건)</span>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />기부금
+                </span>
+                <span className="text-[10px] text-gray-400">※ 수입 항목 ({sortedDonations.length}건)</span>
+              </div>
+              <button
+                onClick={handleExportDonationsCSV}
+                disabled={sortedDonations.length === 0}
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold rounded-lg hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download size={12} /> CSV 다운로드
+              </button>
             </div>
             <div className="grid grid-cols-3 gap-2 text-sm">
               <div className="bg-white rounded-xl p-3 border border-gray-100">
@@ -325,11 +356,20 @@ const CampTab = ({
 
       {/* ══ BLOCK 2: 비용 현황 ══ */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 md:p-5 border-b border-gray-100 bg-gray-50/30 flex items-center gap-2">
-          <LayoutGrid size={18} className="text-indigo-500 flex-shrink-0" />
-          <h2 className="font-bold text-gray-700 text-sm md:text-base">
-            비용 현황
-          </h2>
+        <div className="p-4 md:p-5 border-b border-gray-100 bg-gray-50/30 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <LayoutGrid size={18} className="text-indigo-500 flex-shrink-0" />
+            <h2 className="font-bold text-gray-700 text-sm md:text-base">
+              비용 현황
+            </h2>
+          </div>
+          <button
+            onClick={handleExportCostsCSV}
+            disabled={mergedList.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-600 text-xs md:text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={14} /> CSV 다운로드
+          </button>
         </div>
 
         {/* 직접 입력 폼 (관리자) */}

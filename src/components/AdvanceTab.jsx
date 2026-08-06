@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Banknote, PlusCircle, Trash2, Calendar, TrendingDown, TrendingUp, Wallet, Tag, LayoutGrid } from 'lucide-react';
+import { Banknote, PlusCircle, Trash2, Calendar, TrendingDown, TrendingUp, Wallet, Tag, LayoutGrid, Download } from 'lucide-react';
+import { downloadCSV } from '../utils/csv';
 
 const BRIEF_CATEGORIES = ['학생교육비', '교사운영비', '팀운영비', '행사비'];
 
@@ -44,6 +45,15 @@ const AdvanceTab = ({ advances, settlementItems, isAdmin, onAddAdvance, onDelete
     setDate('');
     setAmount('');
     setBrief('');
+  };
+
+  const handleExportCSV = () => {
+    const rows = sortedAdvances.map((adv) => ({
+      날짜: adv.date,
+      적요: adv.brief || '',
+      금액: adv.amount,
+    }));
+    downloadCSV(`전도금내역_${new Date().toISOString().slice(0, 10)}.csv`, rows);
   };
 
   return (
@@ -182,9 +192,18 @@ const AdvanceTab = ({ advances, settlementItems, isAdmin, onAddAdvance, onDelete
 
       {/* ── 전도금 신청 이력 목록 ── */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 md:p-5 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2">
-          <Banknote size={18} className="text-indigo-500" />
-          <h3 className="font-bold text-gray-700 text-sm md:text-base">전도금 신청 내역</h3>
+        <div className="p-4 md:p-5 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Banknote size={18} className="text-indigo-500" />
+            <h3 className="font-bold text-gray-700 text-sm md:text-base">전도금 신청 내역</h3>
+          </div>
+          <button
+            onClick={handleExportCSV}
+            disabled={sortedAdvances.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-600 text-xs md:text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={14} /> CSV 다운로드
+          </button>
         </div>
 
         {/* Mobile View */}

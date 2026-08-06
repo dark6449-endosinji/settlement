@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Wallet, Pencil, Save } from 'lucide-react';
+import { Wallet, Pencil, Save, Download } from 'lucide-react';
+import { downloadCSV } from '../utils/csv';
 
 const BudgetTab = ({ budget, setBudget, items, isAdmin, handleSaveBudget }) => {
   const [isEditingBudget, setIsEditingBudget] = useState(false);
@@ -58,6 +59,32 @@ const BudgetTab = ({ budget, setBudget, items, isAdmin, handleSaveBudget }) => {
   const group2Keys = ['행사비'];
   const allKeys = [...group1Keys, ...group2Keys];
 
+  const budgetRowDefs = [
+    { label: '합계', keys: allKeys },
+    { label: '사회봉사비', keys: allKeys },
+    { label: '봉사비', keys: allKeys },
+    { label: '교회학교운영비(장)', keys: group1Keys },
+    { label: '교사운영비', keys: ['교사운영비'] },
+    { label: '학생교육비', keys: ['학생교육비'] },
+    { label: '팀운영비', keys: ['팀운영비'] },
+    { label: '교회학교행사비(장)', keys: group2Keys },
+    { label: '행사비', keys: ['행사비'] },
+  ];
+
+  const handleExportCSV = () => {
+    const rows = budgetRowDefs.map(({ label, keys }) => {
+      const rowBudget = calcTotal(keys);
+      const rowSpent = calcSpent(keys);
+      return {
+        활동항목명: label,
+        예산액: rowBudget,
+        지출액: rowSpent,
+        잔여예산: rowBudget - rowSpent,
+      };
+    });
+    downloadCSV(`예산현황_${new Date().toISOString().slice(0, 10)}.csv`, rows);
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-sm md:shadow-lg border border-gray-100 overflow-hidden animate-in fade-in duration-300">
       <div className="p-4 md:p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
@@ -65,26 +92,34 @@ const BudgetTab = ({ budget, setBudget, items, isAdmin, handleSaveBudget }) => {
           <Wallet className="w-5 h-5 text-indigo-500" />
           연간 예산 및 지출 현황
         </h3>
-        {isAdmin && (
-          isEditingBudget ? (
-            <button
-              onClick={() => {
-                handleSaveBudget();
-                setIsEditingBudget(false);
-              }}
-              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-            >
-              <Save size={16} /> 변경사항 저장
-            </button>
-          ) : (
-            <button
-              onClick={() => setIsEditingBudget(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm font-bold rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-            >
-              <Pencil size={16} /> 예산 설정
-            </button>
-          )
-        )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm font-bold rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            <Download size={16} /> CSV 다운로드
+          </button>
+          {isAdmin && (
+            isEditingBudget ? (
+              <button
+                onClick={() => {
+                  handleSaveBudget();
+                  setIsEditingBudget(false);
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+              >
+                <Save size={16} /> 변경사항 저장
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsEditingBudget(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm font-bold rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+              >
+                <Pencil size={16} /> 예산 설정
+              </button>
+            )
+          )}
+        </div>
       </div>
       
       <div className="overflow-x-auto">

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { List, User, RefreshCw, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, ArrowUpDown, TrendingUp, PieChart, Banknote } from 'lucide-react';
+import { List, User, RefreshCw, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, ArrowUpDown, TrendingUp, PieChart, Banknote, Download } from 'lucide-react';
+import { downloadCSV } from '../utils/csv';
 
 const ViewTab = ({ items, isAdmin, onEditClick, onDelete, onToggleStatus, onTogglePayment }) => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -38,6 +39,21 @@ const ViewTab = ({ items, isAdmin, onEditClick, onDelete, onToggleStatus, onTogg
     });
     return Object.entries(groups).sort((a, b) => b[1] - a[1]);
   }, [items]);
+
+  const handleExportCSV = () => {
+    const rows = sortedItems.map((item) => ({
+      일자: item.date,
+      내용: item.content,
+      적요: item.brief || '',
+      금액: item.amount,
+      수령인: item.recipient,
+      현황: item.status,
+      정산일자: item.settlementDate || '',
+      지급: item.paymentStatus || '대기',
+      지급일자: item.paymentDate || '',
+    }));
+    downloadCSV(`정산내역_${new Date().toISOString().slice(0, 10)}.csv`, rows);
+  };
 
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in duration-300">
@@ -79,6 +95,13 @@ const ViewTab = ({ items, isAdmin, onEditClick, onDelete, onToggleStatus, onTogg
             <List className="w-4 h-4 md:w-5 md:h-5 text-indigo-500" />
             상세 내역 목록
           </h3>
+          <button
+            onClick={handleExportCSV}
+            disabled={sortedItems.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-600 text-xs md:text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={14} /> CSV 다운로드
+          </button>
         </div>
         
         {/* Mobile View */}
